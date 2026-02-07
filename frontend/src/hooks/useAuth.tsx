@@ -18,6 +18,22 @@ interface AuthActions {
   signOut: () => Promise<void>
 }
 
+const withTimeout = async <T>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+  let timerId: ReturnType<typeof setTimeout> | null = null
+
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timerId = setTimeout(() => reject(new Error(message)), ms)
+  })
+
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    if (timerId) {
+      clearTimeout(timerId)
+    }
+  }
+}
+
 const fetchRole = async (userId: string): Promise<UserRole | null> => {
   const { data, error } = await supabase.from('users').select('role').eq('id', userId).maybeSingle()
 
@@ -55,8 +71,15 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
 
     set({ user, loading: true, error: null })
 
-    const role = await fetchRole(user.id)
-    set({ role, loading: false })
+    try {
+      const role = await withTimeout(fetchRole(user.id), 2000, 'Role lookup timed out')
+      set({ role, error: null })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to load user profile'
+      set({ role: null, error: message })
+    } finally {
+      set({ loading: false })
+    }
   },
   signIn: async (email, password) => {
     set({ loading: true, error: null })
