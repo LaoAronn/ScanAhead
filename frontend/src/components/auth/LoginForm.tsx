@@ -1,14 +1,22 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 const LoginForm = () => {
   const { signIn, loading, error } = useAuth()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    await signIn(email, password)
+    try {
+      await signIn(email, password)
+      // On success, navigate to patient dashboard
+      navigate('/patient', { replace: true })
+    } catch {
+      // signIn hook exposes error state; keep the form visible on failure
+    }
   }
 
   return (
