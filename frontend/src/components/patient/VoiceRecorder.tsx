@@ -6,12 +6,21 @@ interface VoiceRecorderProps {
 
 const MAX_DURATION = 120
 const WARNING_AT = 105
+const QUESTION_DISPLAY_TIME = 30000 // 30 seconds
+
+const PROMPTS = [
+  "When did this start?",
+  "How has it changed?",
+  "Any pain, itching, or other symptoms?",
+  "What have you tried so far?"
+]
 
 const VoiceRecorder = ({ onRecorded }: VoiceRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false)
   const [duration, setDuration] = useState(0)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showPrompts, setShowPrompts] = useState(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
@@ -19,6 +28,7 @@ const VoiceRecorder = ({ onRecorded }: VoiceRecorderProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animationRef = useRef<number | null>(null)
+  const promptTimerRef = useRef<number | null>(null)
 
   const drawWaveform = () => {
     const analyser = analyserRef.current
@@ -109,7 +119,13 @@ const VoiceRecorder = ({ onRecorded }: VoiceRecorderProps) => {
 
       recorder.start()
       setIsRecording(true)
+      setShowPrompts(true)
       drawWaveform()
+
+      // Hide prompts after 30 seconds
+      promptTimerRef.current = window.setTimeout(() => {
+        setShowPrompts(false)
+      }, QUESTION_DISPLAY_TIME)
 
       timerRef.current = window.setInterval(() => {
         setDuration((prev) => {
@@ -129,17 +145,30 @@ const VoiceRecorder = ({ onRecorded }: VoiceRecorderProps) => {
     mediaRecorderRef.current?.stop()
     streamRef.current?.getTracks().forEach((track) => track.stop())
     setIsRecording(false)
+    setShowPrompts(false)
     stopWaveform()
 
     if (timerRef.current) {
       window.clearInterval(timerRef.current)
     }
+    if (promptTimerRef.current) {
+      window.clearTimeout(promptTimerRef.current)
+    }
+  }
+
+  const handleActionClick = () => {
+    // Add your custom logic here
+    console.log('Action button clicked!')
+    // For example: submit recording, delete, re-record, etc.
   }
 
   useEffect(() => {
     return () => {
       if (timerRef.current) {
         window.clearInterval(timerRef.current)
+      }
+      if (promptTimerRef.current) {
+        window.clearTimeout(promptTimerRef.current)
       }
       stopWaveform()
       streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -162,6 +191,24 @@ const VoiceRecorder = ({ onRecorded }: VoiceRecorderProps) => {
         <canvas ref={canvasRef} className="h-20 w-full" />
         <p className="mt-2 text-xs text-slate-500">Waveform appears while recording.</p>
       </div>
+
+      {/* Animated prompts */}
+      {showPrompts && isRecording && (
+        <div className="mt-4 space-y-2 animate-fade-in">
+          <p className="text-sm font-medium text-slate-700">Consider mentioning:</p>
+          <div className="grid gap-2">
+            {PROMPTS.map((prompt, index) => (
+              <div
+                key={index}
+                className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900 animate-slide-in"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                {prompt}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {duration >= WARNING_AT && isRecording && (
         <p className="mt-3 text-sm text-amber-600">Almost done. Please wrap up in the next 15 seconds.</p>
@@ -188,9 +235,49 @@ const VoiceRecorder = ({ onRecorded }: VoiceRecorderProps) => {
         )}
 
         {audioUrl && (
-          <audio controls src={audioUrl} className="w-full max-w-sm" />
+          <>
+            <audio controls src={audioUrl} className="flex-1 max-w-sm" />
+            <button
+              type="button"
+              onClick={handleActionClick}
+              className="rounded-full bg-brand-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-700"
+            >
+              Transcribe
+            </button>
+          </>
         )}
       </div>
+
+      <style>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes slide-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out;
+        }
+
+        .animate-slide-in {
+          animation: slide-in 0.4s ease-out forwards;
+          opacity: 0;
+        }
+      `}</style>
     </section>
   )
 }
