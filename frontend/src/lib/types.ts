@@ -38,6 +38,8 @@ export interface CaseSubmission {
   transcription: string | null
   ai_summary: AiSummary | null
   model_3d_url?: string | null
+  kiri_serialize?: string | null
+  model_status?: number | null
   doctor_notes?: string | null
   created_at: string
 }

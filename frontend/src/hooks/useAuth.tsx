@@ -13,6 +13,7 @@ interface AuthState {
 
 interface AuthActions {
   setUser: (user: User | null) => Promise<void>
+  setLoading: (loading: boolean) => void
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<void>
   signOut: () => Promise<void>
@@ -65,11 +66,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   error: null,
   setUser: async (user) => {
     if (!user) {
-      set({ user: null, role: null, loading: false, error: null })
+      set({ user: null, role: null, error: null })
       return
     }
 
-    set({ user, loading: true, error: null })
+    set({ user, error: null })
 
     try {
       const role = await withTimeout(fetchRole(user.id), 2000, 'Role lookup timed out')
@@ -78,9 +79,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       const message = error instanceof Error ? error.message : 'Unable to load user profile'
       set({ role: null, error: message })
     } finally {
-      set({ loading: false })
+      // Loading state is controlled by session fetch, not role lookup.
     }
   },
+  setLoading: (loading) => set({ loading }),
   signIn: async (email, password) => {
     set({ loading: true, error: null })
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -91,6 +93,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     }
 
     await useAuthStore.getState().setUser(data.user)
+    set({ loading: false })
   },
   signUp: async (email, password, fullName, role) => {
     set({ loading: true, error: null })
@@ -111,6 +114,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       await upsertProfile(data.user.id, email, fullName, role)
       await useAuthStore.getState().setUser(data.user)
     }
+    set({ loading: false })
   },
   signOut: async () => {
     set({ loading: true, error: null })
@@ -123,14 +127,17 @@ export const useAuth = () => useAuthStore()
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setUser = useAuthStore((state) => state.setUser)
+  const setLoading = useAuthStore((state) => state.setLoading)
 
   useEffect(() => {
     let isMounted = true
 
     const init = async () => {
+      setLoading(true)
       const { data } = await supabase.auth.getSession()
       if (isMounted) {
         await setUser(data.session?.user ?? null)
+        setLoading(false)
       }
     }
 
@@ -138,6 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
       await setUser(session?.user ?? null)
+      setLoading(false)
     })
 
     return () => {

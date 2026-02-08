@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { AiSummary, AppointmentDraft } from '../../lib/types'
 import { normalizeSummary, summarizeTranscription, transcribeVoiceNote } from '../../lib/api'
+import { uploadVideoToKiri } from '../../lib/kiri'
 import { useAuth } from '../../hooks/useAuth'
 import type { CapturedImage } from './CameraCapture'
 
@@ -10,11 +11,15 @@ interface CaseSubmissionProps {
   bodyPart: string
   images: CapturedImage[]
   audio: Blob | null
+  video: Blob | null
+  captureMode: 'photos' | 'video'
+  // optional transcription coming from the VoiceRecorder component
+  transcriptionText?: string | null
   onSubmitted?: (caseId: string) => void
 }
 
-const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: CaseSubmissionProps) => {
-  const { user } = useAuth()
+const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMode, transcriptionText: providedTranscription, onSubmitted }: CaseSubmissionProps) => {
+  const { user, role } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successId, setSuccessId] = useState<string | null>(null)
@@ -33,8 +38,11 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
       if (!bodyPart) {
         throw new Error('Please select a body part.')
       }
-      if (images.length < 5) {
+      if (captureMode === 'photos' && images.length < 5) {
         throw new Error('Please capture at least 5 images.')
+      }
+      if (captureMode === 'video' && !video) {
+        throw new Error('Please record a short video.')
       }
       if (!audio) {
         throw new Error('Please record a voice note.')
@@ -47,6 +55,19 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
         onSubmitted?.(caseId)
         setLoading(false)
         return
+      }
+
+      const profilePayload = {
+        id: user.id,
+        email: user.email ?? appointment.email,
+        full_name: appointment.patientName || user.user_metadata?.full_name || 'Patient',
+        role: role ?? 'patient',
+      }
+
+      const { error: profileError } = await supabase.from('users').upsert(profilePayload)
+
+      if (profileError) {
+        throw new Error(`Unable to create patient profile. ${profileError.message}`)
       }
 
       const { data: appointmentData, error: appointmentError } = await supabase
@@ -65,23 +86,65 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
         .single()
 
       if (appointmentError || !appointmentData) {
-        throw new Error('Unable to create appointment.')
+        const message = appointmentError?.message ?? 'Unable to create appointment.'
+        throw new Error(message)
       }
 
       const imageUrls: string[] = []
-      for (const [index, image] of images.entries()) {
-        const blob = await (await fetch(image.dataUrl)).blob()
-        const filePath = `${appointmentData.id}/${index + 1}.jpg`
-        const { error: uploadError } = await supabase.storage
-          .from('patient-images')
-          .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true })
+      if (captureMode === 'photos') {
+        for (const [index, image] of images.entries()) {
+          const blob = await (await fetch(image.dataUrl)).blob()
+          const filePath = `${appointmentData.id}/${index + 1}.jpg`
+          const { error: uploadError } = await supabase.storage
+            .from('patient-images')
+            .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true })
 
-        if (uploadError) {
-          throw new Error('Unable to upload images.')
+          if (uploadError) {
+            throw new Error('Unable to upload images.')
+          }
+
+          const { data: publicUrl } = supabase.storage.from('patient-images').getPublicUrl(filePath)
+          imageUrls.push(publicUrl.publicUrl)
+        }
+      }
+
+      const resolveVideoExtension = (blob: Blob) => {
+        const type = blob.type.toLowerCase()
+        if (type.includes('webm')) return 'webm'
+        if (type.includes('mp4')) return 'mp4'
+        if (type.includes('quicktime')) return 'mov'
+        return 'webm'
+      }
+
+      let videoPath: string | null = null
+      let kiriSerialize: string | null = null
+      let modelStatus: number | null = null
+      if (captureMode === 'video' && video) {
+        const extension = resolveVideoExtension(video)
+        const contentType = video.type || `video/${extension}`
+        videoPath = `${appointmentData.id}/case-video.${extension}`
+        const { error: videoError } = await supabase.storage
+          .from('patient-videos')
+          .upload(videoPath, video, { contentType, upsert: true })
+
+        if (videoError) {
+          throw new Error('Unable to upload video.')
         }
 
-        const { data: publicUrl } = supabase.storage.from('patient-images').getPublicUrl(filePath)
-        imageUrls.push(publicUrl.publicUrl)
+        const kiriResponse = await uploadVideoToKiri(video, {
+          modelQuality: 1,
+          textureQuality: 1,
+          isMask: 1,
+          textureSmoothing: 1,
+          fileFormat: 'glb',
+        })
+
+        if (!kiriResponse?.data?.serialize) {
+          throw new Error('Unable to start 3D model generation.')
+        }
+
+        kiriSerialize = kiriResponse.data.serialize
+        modelStatus = 3
       }
 
       const audioPath = `${appointmentData.id}/voice-note.webm`
@@ -93,10 +156,21 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
         throw new Error('Unable to upload voice note.')
       }
 
-      let transcriptionText: string | null = null
+      // Prefer transcription provided from the VoiceRecorder (if any).
+      // If none provided, fall back to the persisted transcription saved by VoiceRecorder.
+      let transcriptionText: string | null = providedTranscription ?? null
+      if (!transcriptionText) {
+        try {
+          const saved = localStorage.getItem('scanahead_transcription')
+          if (saved && saved.trim().length > 0) transcriptionText = saved
+        } catch {
+          /* ignore localStorage errors */
+        }
+      }
       let aiSummary: AiSummary | null = null
 
-      if (import.meta.env.VITE_TRANSCRIBE_API_URL) {
+      // Only call remote transcription if we don't already have a provided transcription
+      if (!transcriptionText && import.meta.env.VITE_TRANSCRIBE_API_URL) {
         try {
           const transcriptionPayload = await transcribeVoiceNote(audio)
           const textCandidate =
@@ -127,12 +201,22 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
         appointment_id: appointmentData.id,
         image_urls: imageUrls,
         audio_url: audioPath,
+        video_url: videoPath,
         transcription: transcriptionText,
         ai_summary: aiSummary,
+        kiri_serialize: kiriSerialize,
+        model_status: modelStatus,
       })
 
       if (caseError) {
         throw new Error('Unable to submit case.')
+      }
+
+      // Clear saved transcription after successful submit
+      try {
+        localStorage.removeItem('scanahead_transcription')
+      } catch {
+        /* ignore */
       }
 
       setSuccessId(appointmentData.id)
@@ -148,7 +232,7 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="text-lg font-semibold text-slate-900">Submit your case</h3>
       <p className="mt-1 text-sm text-slate-500">
-        We will review your photos and voice note. You will receive a confirmation ID.
+        We will review your photos or video along with the voice note. You will receive a confirmation ID.
       </p>
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}

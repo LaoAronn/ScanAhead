@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Webcam from 'react-webcam'
 import { useCamera } from '../../hooks/useCamera'
 
@@ -10,6 +10,7 @@ interface CapturedImage {
 
 interface CameraCaptureProps {
   maxImages?: number
+  value?: CapturedImage[]
   onChange?: (images: CapturedImage[]) => void
 }
 
@@ -59,15 +60,22 @@ const compressImage = async (dataUrl: string, maxBytes: number) => {
   return output
 }
 
-const CameraCapture = ({ maxImages = 7, onChange }: CameraCaptureProps) => {
+const CameraCapture = ({ maxImages = 7, value, onChange }: CameraCaptureProps) => {
   const webcamRef = useRef<Webcam>(null)
   const { facingMode, toggleFacingMode, videoConstraints } = useCamera()
-  const [images, setImages] = useState<CapturedImage[]>([])
+  const [images, setImages] = useState<CapturedImage[]>(value ?? [])
   const [activeIndex, setActiveIndex] = useState(0)
   const [retakeIndex, setRetakeIndex] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const steps = useMemo(() => angleSteps.slice(0, maxImages), [maxImages])
+
+  useEffect(() => {
+    if (typeof value === 'undefined') return
+    setImages(value)
+    setRetakeIndex(null)
+    setActiveIndex(Math.min(value.length, Math.max(steps.length - 1, 0)))
+  }, [value, steps.length])
 
   const handleCapture = async () => {
     const screenshot = webcamRef.current?.getScreenshot()

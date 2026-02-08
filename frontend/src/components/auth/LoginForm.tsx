@@ -7,14 +7,22 @@ const LoginForm = () => {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [formError, setFormError] = useState<string | null>(null)
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setFormError(null)
     try {
       await signIn(email, password)
       // On success, navigate to patient dashboard
       navigate('/patient', { replace: true })
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.toLowerCase().includes('api key not configured')) {
+        setFormError('Server configuration error: API key not configured. Please contact the administrator.')
+      } else {
+        setFormError(msg)
+      }
       // signIn hook exposes error state; keep the form visible on failure
     }
   }
@@ -44,6 +52,7 @@ const LoginForm = () => {
         />
       </div>
       {error && <p className="text-sm text-rose-600">{error}</p>}
+      {formError && <p className="text-sm text-rose-600">{formError}</p>}
       <button
         type="submit"
         disabled={loading}

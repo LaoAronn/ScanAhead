@@ -56,14 +56,22 @@ create policy "Users can read own profile" on public.users
   for select
   using (id = auth.uid());
 
+create or replace function public.is_doctor()
+returns boolean
+language sql
+security definer
+set search_path = public
+set row_security = off
+as $$
+  select exists (
+    select 1 from public.users u
+    where u.id = auth.uid() and u.role = 'doctor'
+  );
+$$;
+
 create policy "Doctors can read user profiles" on public.users
   for select
-  using (
-    exists (
-      select 1 from public.users u
-      where u.id = auth.uid() and u.role = 'doctor'
-    )
-  );
+  using (public.is_doctor());
 
 create policy "Users can insert own profile" on public.users
   for insert
@@ -214,6 +222,35 @@ create policy "Patients and doctors can read videos" on storage.objects
   for select
   using (
     bucket_id = 'patient-videos'
+    and exists (
+      select 1 from public.appointments a
+      where a.id = (storage.foldername(name))[1]::uuid
+        and (a.patient_id = auth.uid() or a.assigned_doctor_id = auth.uid())
+    )
+  );
+
+alter table public.case_submissions add column if not exists kiri_serialize text;
+alter table public.case_submissions add column if not exists model_status integer;
+
+insert into storage.buckets (id, name, public)
+values ('patient-models', 'patient-models', false)
+on conflict (id) do nothing;
+
+create policy "Patients can upload their models" on storage.objects
+  for insert
+  with check (
+    bucket_id = 'patient-models'
+    and exists (
+      select 1 from public.appointments a
+      where a.id = (storage.foldername(name))[1]::uuid
+        and a.patient_id = auth.uid()
+    )
+  );
+
+create policy "Patients and doctors can read models" on storage.objects
+  for select
+  using (
+    bucket_id = 'patient-models'
     and exists (
       select 1 from public.appointments a
       where a.id = (storage.foldername(name))[1]::uuid
