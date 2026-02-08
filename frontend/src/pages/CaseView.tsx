@@ -1,6 +1,8 @@
 import { useParams } from 'react-router-dom'
 import CaseDetail from '../components/doctor/CaseDetail'
 import { useCaseDetail } from '../hooks/useCaseDetail'
+import { Button } from '../components/ui/button'
+import { Card, CardContent } from '../components/ui/card'
 
 const CaseView = () => {
   const { id } = useParams()
@@ -8,27 +10,27 @@ const CaseView = () => {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-        <p className="text-sm text-slate-600">Loading case details...</p>
-      </div>
+      <Card>
+        <CardContent className="p-10 text-center">
+          <p className="text-sm text-slate-600">Loading case details...</p>
+        </CardContent>
+      </Card>
     )
   }
 
   if (error || !data) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-        <h2 className="text-xl font-semibold text-slate-900">Case not found</h2>
-        <p className="mt-2 text-sm text-slate-600">{error ?? 'Select a case from the dashboard.'}</p>
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={refresh}
-            className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="p-10 text-center">
+          <h2 className="text-xl font-semibold text-slate-900">Case not found</h2>
+          <p className="mt-2 text-sm text-slate-600">{error ?? 'Select a case from the dashboard.'}</p>
+          <div className="mt-4">
+            <Button type="button" variant="outline" size="sm" onClick={refresh}>
+              Try again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 

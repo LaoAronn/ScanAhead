@@ -1,3 +1,5 @@
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faStethoscope } from '@fortawesome/free-solid-svg-icons'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -12,7 +14,7 @@ const Navbar = () => {
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-white">
-            S
+            <FontAwesomeIcon icon={faStethoscope} className="h-4 w-4" />
           </span>
           ScanAhead
         </Link>
@@ -20,8 +22,11 @@ const Navbar = () => {
         <nav className="flex items-center gap-6">
           {role === 'patient' && (
             <>
-              <NavLink to="/patient" className={navLinkClass}>
+              <NavLink to="/patient" end className={navLinkClass}>
                 Dashboard
+              </NavLink>
+              <NavLink to="/patient/cases" className={navLinkClass}>
+                All Cases
               </NavLink>
               <NavLink to="/patient/new-case" className={navLinkClass}>
                 New Case

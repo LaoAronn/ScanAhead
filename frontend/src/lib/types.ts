@@ -58,4 +58,7 @@ export interface AppointmentDraft {
   preferredDate: string
   preferredTime: string
   chiefComplaint: string
+  institutionId?: string
+  preferredProvider?: string
+  visitType?: string
 }

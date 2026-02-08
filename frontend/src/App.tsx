@@ -3,6 +3,7 @@ import Navbar from './components/shared/Navbar'
 import ProtectedRoute from './components/shared/ProtectedRoute'
 import Login from './pages/Login'
 import PatientDashboard from './pages/PatientDashboard'
+import PatientCases from './pages/PatientCases'
 import DoctorDashboard from './pages/DoctorDashboard'
 import NewCase from './pages/NewCase'
 import CaseView from './pages/CaseView'
@@ -58,6 +59,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['patient']}>
                 <NewCase />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patient/cases"
+            element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <PatientCases />
               </ProtectedRoute>
             }
           />
