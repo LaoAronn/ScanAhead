@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 
 const statusStyles: Record<string, string> = {
-  submitted: 'border border-emerald-300 bg-emerald-100 text-emerald-800',
+  submitted: 'border border-emerald-700 bg-emerald-600 text-white',
   reviewing: 'border border-amber-200 bg-amber-50 text-amber-700',
   completed: 'border border-slate-200 bg-slate-100 text-slate-600',
 }
@@ -26,6 +26,8 @@ const PatientDashboard = () => {
     })
     return totals
   }, [cases])
+
+  const recentCases = useMemo(() => cases.slice(0, 4), [cases])
 
   return (
     <div className="space-y-8">
@@ -107,7 +109,7 @@ const PatientDashboard = () => {
             {!loading && cases.length === 0 && (
               <p className="text-sm text-slate-500">No submissions yet. Start a new case to begin.</p>
             )}
-            {cases.map((item) => (
+            {recentCases.map((item) => (
               <Link
                 key={item.id}
                 to={`/patient/cases/${item.id}`}
@@ -122,6 +124,13 @@ const PatientDashboard = () => {
                 <Badge className={statusStyles[item.status] ?? ''}>{item.status}</Badge>
               </Link>
             ))}
+            {cases.length > 4 && (
+              <div className="pt-2">
+                <Button variant="outline" size="sm" onClick={() => navigate('/patient/cases')}>
+                  View all cases
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

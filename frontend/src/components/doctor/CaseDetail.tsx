@@ -28,7 +28,7 @@ interface CaseDetailProps {
 }
 
 const statusPillStyles: Record<CaseDetailProps['status'], string> = {
-  submitted: 'border border-emerald-300 bg-emerald-100 text-emerald-800',
+  submitted: 'border border-emerald-700 bg-emerald-600 text-white',
   reviewing: 'border border-amber-200 bg-amber-50 text-amber-700',
   completed: 'border border-slate-200 bg-slate-100 text-slate-600',
 }
@@ -116,11 +116,20 @@ const CaseDetail = ({
     const loadMedia = async () => {
       setVideoUrl(await createSignedUrl('patient-videos', videoPath))
       setAudioUrl(await createSignedUrl('voice-notes', audioPath))
-      setModelUrl(await createSignedUrl('patient-models', modelPath))
+      const signedModel = await createSignedUrl('patient-models', modelPath)
+      setModelUrl(signedModel)
+
+      if (!signedModel) {
+        const existing = await findExistingModel()
+        if (existing) {
+          setModelUrl(existing.url)
+          setKiriStatus(2)
+        }
+      }
     }
 
     loadMedia()
-  }, [videoPath, audioPath, modelPath])
+  }, [videoPath, audioPath, modelPath, appointmentId])
 
   useEffect(() => {
     setKiriStatus(modelStatus ?? null)

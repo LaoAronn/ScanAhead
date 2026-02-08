@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useCases } from '../../hooks/useCases'
 
 const statusStyles: Record<string, string> = {
-  submitted: 'border border-emerald-300 bg-emerald-100 text-emerald-800',
+  submitted: 'border border-emerald-700 bg-emerald-600 text-white',
   reviewing: 'border border-amber-200 bg-amber-50 text-amber-700',
   completed: 'border border-slate-200 bg-slate-100 text-slate-600',
 }
