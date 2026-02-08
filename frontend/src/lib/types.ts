@@ -58,4 +58,6 @@ export interface AppointmentDraft {
   preferredDate: string
   preferredTime: string
   chiefComplaint: string
+  preferredProvider?: string
+  visitType?: string
 }

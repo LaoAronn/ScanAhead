@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { transcribeAudio } from '../../lib/transcription'
+import { Button } from '../ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 
 interface VoiceRecorderProps {
   value?: Blob | null
@@ -7,18 +9,53 @@ interface VoiceRecorderProps {
   onTranscribed?: (text: string) => void
 }
 
+type SpeechRecognitionResultLike = {
+  isFinal: boolean
+  0: { transcript: string }
+}
+
+type SpeechRecognitionEventLike = {
+  results: SpeechRecognitionResultLike[]
+}
+
+type SpeechRecognitionLike = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: ((event: Event) => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor
+  webkitSpeechRecognition?: SpeechRecognitionConstructor
+}
+
+type TranscriptionResponse =
+  | {
+      text?: string
+      transcription?: string
+      transcription_id?: string
+      words?: unknown[]
+    }
+  | string
+
 const MAX_DURATION = 120
 const WARNING_AT = 105
 const QUESTION_DISPLAY_TIME = 30000
 
 const PROMPTS = [
-  "When did this start?",
-  "How has it changed?",
-  "Any pain, itching, or other symptoms?",
-  "What have you tried so far?"
+  'When did this start?',
+  'How has it changed?',
+  'Any pain, itching, or other symptoms?',
+  'What have you tried so far?',
 ]
 
-const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) => {
+const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false)
   const [duration, setDuration] = useState(0)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
@@ -28,13 +65,13 @@ const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) 
   const [showPrompts, setShowPrompts] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcription, setTranscription] = useState<string | null>(null)
-  const [transcriptionMeta, setTranscriptionMeta] = useState<{ transcription_id?: string; words?: any[] } | null>(null)
+  const [transcriptionMeta, setTranscriptionMeta] = useState<{ transcription_id?: string; words?: unknown[] } | null>(null)
   const [liveTranscript, setLiveTranscript] = useState<string | null>(null)
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
-  const recognitionRef = useRef<any>(null) // SpeechRecognition instance (if available)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const timerRef = useRef<number | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
@@ -103,19 +140,15 @@ const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
-      // Start SpeechRecognition fallback (live) if supported
       try {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        const speechWindow = window as SpeechWindow
+        const SpeechRecognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition
         if (SpeechRecognition) {
           const rec = new SpeechRecognition()
           rec.continuous = true
           rec.interimResults = true
           rec.lang = 'en-US'
-          let accumulated = ''
-          rec.onresult = (ev: any) => {
-            // Recompute final transcript from scratch from the event results
-            // (ev.results contains all results so far). This avoids re-appending
-            // previously-finalized text and prevents duplication.
+          rec.onresult = (ev: SpeechRecognitionEventLike) => {
             let finalTranscript = ''
             let interimTranscript = ''
 
@@ -125,23 +158,20 @@ const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) 
               if (result.isFinal) {
                 finalTranscript = finalTranscript ? `${finalTranscript} ${text}` : text
               } else if (i === ev.results.length - 1) {
-                // only consider the last non-final chunk as the interim
                 interimTranscript = text
               }
             }
 
-            accumulated = finalTranscript
             const combined = (finalTranscript ? `${finalTranscript} ${interimTranscript}` : interimTranscript).trim()
             setLiveTranscript(combined || null)
           }
-          rec.onerror = (e: any) => {
-            console.warn('SpeechRecognition error', e)
+          rec.onerror = (event: Event) => {
+            console.warn('SpeechRecognition error', event)
           }
           rec.start()
           recognitionRef.current = rec
         }
       } catch (e) {
-        // ignore recognition init errors
         console.warn('SpeechRecognition not available', e)
       }
 
@@ -194,7 +224,7 @@ const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) 
           return prev + 1
         })
       }, 1000)
-    } catch (err) {
+    } catch {
       setError('Microphone access is required to record a voice note.')
     }
   }
@@ -206,7 +236,6 @@ const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) 
     setShowPrompts(false)
     stopWaveform()
 
-    // Stop SpeechRecognition fallback if running
     try {
       if (recognitionRef.current) {
         recognitionRef.current.stop?.()
@@ -235,16 +264,16 @@ const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) 
     setDetailedError(null)
 
     try {
-      const result = await transcribeAudio(audioBlob)
-      // support both shapes (legacy string -> { text })
-      const text = (result as any).text ?? (result as any)
+      const result = (await transcribeAudio(audioBlob)) as TranscriptionResponse
+      const text = typeof result === 'string'
+        ? result
+        : result.text ?? result.transcription ?? ''
       setTranscription(text)
       setTranscriptionMeta({
-        transcription_id: (result as any).transcription_id,
-        words: (result as any).words
+        transcription_id: typeof result === 'string' ? undefined : result.transcription_id,
+        words: typeof result === 'string' ? undefined : result.words,
       })
       try {
-        // persist final transcription so other components (e.g. CaseSubmission) can read it
         localStorage.setItem('scanahead_transcription', text ?? '')
       } catch {
         /* ignore storage errors */
@@ -255,7 +284,6 @@ const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) 
       console.error('Transcription error:', err)
       setDetailedError(msg)
 
-      // If remote fetch failed, fallback to liveTranscript if available
       const isNetworkLike =
         msg.includes('Failed to fetch') ||
         msg.toLowerCase().includes('networkerror') ||
@@ -270,10 +298,9 @@ const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) 
           /* ignore */
         }
         onTranscribed?.(liveTranscript)
-        // removed fallback error message per request; use live transcript silently
       } else if (isNetworkLike && !liveTranscript) {
         setError(
-          'Unable to reach the transcription service and no browser fallback available. Ensure your backend endpoint is running or try recording again.'
+          'Unable to reach the transcription service and no browser fallback available. Ensure your backend endpoint is running or try recording again.',
         )
       } else {
         setError(msg)
@@ -314,156 +341,105 @@ const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) 
   }, [])
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">Voice note (max 2 minutes)</h3>
-          <p className="mt-1 text-sm text-slate-500">Describe symptoms, duration, and changes over time.</p>
-        </div>
-        <div className="text-sm font-semibold text-slate-700">
-          {Math.floor(duration / 60)}:{String(duration % 60).padStart(2, '0')}
-        </div>
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
-        <canvas ref={canvasRef} className="h-20 w-full" />
-        <p className="mt-2 text-xs text-slate-500">Waveform appears while recording.</p>
-      </div>
-
-      {showPrompts && isRecording && (
-        <div className="mt-4 space-y-2 animate-fade-in">
-          <p className="text-sm font-medium text-slate-700">Consider mentioning:</p>
-          <div className="grid gap-2">
-            {PROMPTS.map((prompt, index) => (
-              <div
-                key={index}
-                className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900 animate-slide-in"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                {prompt}
-              </div>
-            ))}
+    <Card>
+      <CardHeader className="bg-slate-50">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle>Voice note (max 2 minutes)</CardTitle>
+            <CardDescription>Describe symptoms, duration, and changes over time.</CardDescription>
+          </div>
+          <div className="text-sm font-semibold text-slate-700">
+            {Math.floor(duration / 60)}:{String(duration % 60).padStart(2, '0')}
           </div>
         </div>
-      )}
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
+          <canvas ref={canvasRef} className="h-20 w-full" />
+          <p className="mt-2 text-xs text-slate-500">Waveform appears while recording.</p>
+        </div>
 
-      {duration >= WARNING_AT && isRecording && (
-        <p className="mt-3 text-sm text-amber-600">Almost done. Please wrap up in the next 15 seconds.</p>
-      )}
-      {error && (
-        <div className="mt-3">
-          <p className="text-sm text-rose-600">{error}</p>
-          {detailedError && (
-            <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-slate-100 p-2 text-xs text-slate-700">
-              {detailedError}
-            </pre>
+        {showPrompts && isRecording && (
+          <div className="mt-4 space-y-2 animate-fade-in">
+            <p className="text-sm font-medium text-slate-700">Consider mentioning:</p>
+            <div className="grid gap-2">
+              {PROMPTS.map((prompt, index) => (
+                <div
+                  key={index}
+                  className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900 animate-slide-in"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  {prompt}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {duration >= WARNING_AT && isRecording && (
+          <p className="mt-3 text-sm text-amber-600">Almost done. Please wrap up in the next 15 seconds.</p>
+        )}
+        {error && (
+          <div className="mt-3">
+            <p className="text-sm text-rose-600">{error}</p>
+            {detailedError && (
+              <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-slate-100 p-2 text-xs text-slate-700">
+                {detailedError}
+              </pre>
+            )}
+          </div>
+        )}
+
+        {transcription && (
+          <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4">
+            <p className="mb-2 text-sm font-medium text-green-900">Transcription:</p>
+            <p className="whitespace-pre-wrap text-sm text-green-800">{transcription}</p>
+          </div>
+        )}
+
+        {liveTranscript && (
+          <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">
+            <strong className="text-xs text-slate-600">Live (browser) transcript:</strong>
+            <p className="mt-1 whitespace-pre-wrap text-xs">{liveTranscript}</p>
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {!isRecording ? (
+            <Button type="button" onClick={startRecording} size="lg">
+              Record
+            </Button>
+          ) : (
+            <Button type="button" onClick={stopRecording} variant="destructive" size="lg">
+              Stop
+            </Button>
+          )}
+
+          {audioUrl && (
+            <>
+              <audio controls src={audioUrl} className="flex-1 max-w-sm" />
+              <Button type="button" onClick={handleTranscribe} variant="outline" disabled={isTranscribing}>
+                {isTranscribing ? 'Transcribing...' : 'Transcribe'}
+              </Button>
+            </>
           )}
         </div>
-      )}
 
-      {transcription && (
-        <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
-          <p className="text-sm font-medium text-green-900 mb-2">Transcription:</p>
-          <p className="text-sm text-green-800 whitespace-pre-wrap">{transcription}</p>
-        </div>
-      )}
-
-      {liveTranscript && (
-        <div className="mt-3 rounded-md bg-slate-50 p-2 text-sm text-slate-700">
-          <strong className="text-xs text-slate-600">Live (browser) transcript:</strong>
-          <p className="mt-1 whitespace-pre-wrap text-xs">{liveTranscript}</p>
-        </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        {!isRecording ? (
-          <button
-            type="button"
-            onClick={startRecording}
-            className="rounded-full bg-brand-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-700"
-          >
-            Record
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={stopRecording}
-            className="rounded-full bg-rose-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
-          >
-            Stop
-          </button>
-        )}
-
-        {audioUrl && (
-          <>
-            <audio controls src={audioUrl} className="flex-1 max-w-sm" />
-            <button
-              type="button"
-              onClick={handleTranscribe}
-              disabled={isTranscribing}
-              className="rounded-full bg-brand-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:bg-slate-400 disabled:cursor-not-allowed"
-            >
-              {isTranscribing ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Transcribing...
-                </span>
-              ) : (
-                'Transcribe'
-              )}
-            </button>
-
-            {/* Transcription metadata displayed right below the transcribe button */}
-            {transcriptionMeta && (
-              <div className="mt-2 w-full">
-                {transcriptionMeta.transcription_id && (
-                  <p className="text-xs text-slate-500">Transcription ID: {transcriptionMeta.transcription_id}</p>
-                )}
-                {transcriptionMeta.words && (
-                  <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-slate-50 p-2 text-xs text-slate-700">
-                    {JSON.stringify(transcriptionMeta.words, null, 2)}
-                  </pre>
-                )}
-              </div>
+        {transcriptionMeta && (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs text-slate-500">Transcription metadata</p>
+            {transcriptionMeta.transcription_id && (
+              <p className="mt-2 text-xs text-slate-600">ID: {transcriptionMeta.transcription_id}</p>
             )}
-          </>
+            {transcriptionMeta.words && (
+              <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-white p-2 text-xs text-slate-700">
+                {JSON.stringify(transcriptionMeta.words, null, 2)}
+              </pre>
+            )}
+          </div>
         )}
-      </div>
-
-      <style>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes slide-in {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fade-in {
-          animation: fade-in 0.5s ease-out;
-        }
-
-        .animate-slide-in {
-          animation: slide-in 0.4s ease-out forwards;
-          opacity: 0;
-        }
-      `}</style>
-    </section>
+      </CardContent>
+    </Card>
   )
 }
 

@@ -5,6 +5,8 @@ import { normalizeSummary, summarizeTranscription, transcribeVoiceNote } from '.
 import { uploadVideoToKiri } from '../../lib/kiri'
 import { useAuth } from '../../hooks/useAuth'
 import type { CapturedImage } from './CameraCapture'
+import { Button } from '../ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 
 interface CaseSubmissionProps {
   appointment: AppointmentDraft
@@ -229,33 +231,31 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-slate-900">Submit your case</h3>
-      <p className="mt-1 text-sm text-slate-500">
-        We will review your photos or video along with the voice note. You will receive a confirmation ID.
-      </p>
+    <Card>
+      <CardHeader className="bg-slate-50">
+        <CardTitle>Submit your case</CardTitle>
+        <CardDescription>
+          We will review your photos or video along with the voice note. You will receive a confirmation ID.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {successId && (
+          <p className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            Success! Your case ID is {successId}.
+          </p>
+        )}
 
-      {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
-      {successId && (
-        <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          Success! Your case ID is {successId}.
-        </p>
-      )}
+        <div className="mt-4">
+          <Button type="button" onClick={handleSubmit} disabled={loading} className="w-full" size="lg">
+            {loading ? 'Submitting...' : 'Submit case'}
+          </Button>
+        </div>
 
-      <div className="mt-4">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={loading}
-          className="w-full rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? 'Submitting...' : 'Submit case'}
-        </button>
-      </div>
-
-      {/* TODO: Add real-time status updates with Supabase subscriptions */}
-      {/* TODO: Implement doctor-patient messaging */}
-    </section>
+        {/* TODO: Add real-time status updates with Supabase subscriptions */}
+        {/* TODO: Implement doctor-patient messaging */}
+      </CardContent>
+    </Card>
   )
 }
 

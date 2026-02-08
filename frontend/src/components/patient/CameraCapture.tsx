@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Webcam from 'react-webcam'
 import { useCamera } from '../../hooks/useCamera'
+import { Button } from '../ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 
 interface CapturedImage {
   id: string
@@ -139,105 +141,97 @@ const CameraCapture = ({ maxImages = 7, value, onChange }: CameraCaptureProps) =
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">Capture photos</h3>
-          <p className="mt-1 text-sm text-slate-500">Follow the prompts to capture 5-7 angles.</p>
+    <Card>
+      <CardHeader className="bg-slate-50">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle>Capture photos</CardTitle>
+            <CardDescription>Follow the prompts to capture 5-7 angles.</CardDescription>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={toggleFacingMode}>
+            {facingMode === 'environment' ? 'Switch to front camera' : 'Switch to rear camera'}
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={toggleFacingMode}
-          className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-brand-200 hover:text-brand-700"
-        >
-          {facingMode === 'environment' ? 'Switch to front camera' : 'Switch to rear camera'}
-        </button>
-      </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <div className="space-y-4">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
+              <Webcam
+                ref={webcamRef}
+                audio={false}
+                screenshotFormat="image/jpeg"
+                videoConstraints={videoConstraints}
+                className="aspect-video w-full"
+              />
+              <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-slate-900/60 to-transparent p-4">
+                <p className="rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-slate-900">
+                  {steps[retakeIndex ?? activeIndex]?.prompt ?? 'Capture additional detail'}
+                </p>
+              </div>
+            </div>
 
-      <div className="mt-5 grid gap-6 lg:grid-cols-[2fr,1fr]">
-        <div className="space-y-4">
-          <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
-            <Webcam
-              ref={webcamRef}
-              audio={false}
-              screenshotFormat="image/jpeg"
-              videoConstraints={videoConstraints}
-              className="aspect-video w-full"
-            />
-            <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-slate-900/60 to-transparent p-4">
-              <p className="rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-slate-900">
-                {steps[retakeIndex ?? activeIndex]?.prompt ?? 'Capture additional detail'}
+            {error && <p className="text-sm text-rose-600">{error}</p>}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" onClick={handleCapture} size="lg">
+                Capture photo
+              </Button>
+              <label className="cursor-pointer rounded-full border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-200 hover:text-brand-700">
+                Upload instead
+                <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+              </label>
+              <p className="text-sm text-slate-500">
+                {images.length} / {steps.length} captured
               </p>
             </div>
           </div>
 
-          {error && <p className="text-sm text-rose-600">{error}</p>}
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={handleCapture}
-              className="rounded-full bg-brand-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-700"
-            >
-              Capture photo
-            </button>
-            <label className="cursor-pointer rounded-full border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-200 hover:text-brand-700">
-              Upload instead
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
-            <p className="text-sm text-slate-500">{images.length} / {steps.length} captured</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-700">Angle checklist</p>
-            <div className="mt-3 grid gap-2">
-              {steps.map((step, index) => (
-                <div
-                  key={step.label}
-                  className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm ${
-                    index === activeIndex ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-transparent text-slate-600'
-                  }`}
-                >
-                  <span>{step.label}</span>
-                  <span className="text-xs">
-                    {images[index] ? 'Done' : index === activeIndex ? 'Next' : 'Pending'}
-                  </span>
-                </div>
-              ))}
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-700">Angle checklist</p>
+              <div className="mt-3 grid gap-2">
+                {steps.map((step, index) => (
+                  <div
+                    key={step.label}
+                    className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm ${
+                      index === activeIndex ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-transparent text-slate-600'
+                    }`}
+                  >
+                    <span>{step.label}</span>
+                    <span className="text-xs">
+                      {images[index] ? 'Done' : index === activeIndex ? 'Next' : 'Pending'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div>
-            <p className="text-sm font-semibold text-slate-700">Captured previews</p>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              {images.length === 0 && (
-                <p className="col-span-2 text-sm text-slate-500">No photos captured yet.</p>
-              )}
-              {images.map((image, index) => (
-                <button
-                  key={image.id}
-                  type="button"
-                  onClick={() => setRetakeIndex(index)}
-                  className="group relative overflow-hidden rounded-xl border border-slate-200"
-                >
-                  <img src={image.dataUrl} alt={image.angle} className="h-28 w-full object-cover" />
-                  <span className="absolute inset-x-0 bottom-0 bg-slate-900/70 px-2 py-1 text-xs text-white">
-                    {image.angle} · Retake
-                  </span>
-                </button>
-              ))}
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Captured previews</p>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                {images.length === 0 && (
+                  <p className="col-span-2 text-sm text-slate-500">No photos captured yet.</p>
+                )}
+                {images.map((image, index) => (
+                  <button
+                    key={image.id}
+                    type="button"
+                    onClick={() => setRetakeIndex(index)}
+                    className="group relative overflow-hidden rounded-xl border border-slate-200"
+                  >
+                    <img src={image.dataUrl} alt={image.angle} className="h-28 w-full object-cover" />
+                    <span className="absolute inset-x-0 bottom-0 bg-slate-900/70 px-2 py-1 text-xs text-white">
+                      {image.angle} · Retake
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   )
 }
 

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useCamera } from '../../hooks/useCamera'
+import { Button } from '../ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 
 interface VideoRecorderProps {
   value?: Blob | null
@@ -200,78 +202,64 @@ const VideoRecorder = ({ value, onRecorded }: VideoRecorderProps) => {
   }, [])
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">Record a short video</h3>
-          <p className="mt-1 text-sm text-slate-500">Capture a 30-45s clip that shows the issue clearly.</p>
+    <Card>
+      <CardHeader className="bg-slate-50">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle>Record a short video</CardTitle>
+            <CardDescription>Capture a 30-45s clip that shows the issue clearly.</CardDescription>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={toggleFacingMode}>
+            {facingMode === 'environment' ? 'Switch to front camera' : 'Switch to rear camera'}
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={toggleFacingMode}
-          className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-brand-200 hover:text-brand-700"
-        >
-          {facingMode === 'environment' ? 'Switch to front camera' : 'Switch to rear camera'}
-        </button>
-      </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
+            {!videoUrl ? (
+              <video
+                key={previewKey}
+                ref={previewRef}
+                autoPlay
+                muted
+                playsInline
+                className="aspect-video w-full"
+              />
+            ) : (
+              <video controls src={videoUrl} className="aspect-video w-full" />
+            )}
+          </div>
 
-      <div className="mt-5 space-y-4">
-        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
-          {!videoUrl ? (
-            <video
-              key={previewKey}
-              ref={previewRef}
-              autoPlay
-              muted
-              playsInline
-              className="aspect-video w-full"
-            />
-          ) : (
-            <video controls src={videoUrl} className="aspect-video w-full" />
-          )}
+          {error && <p className="text-sm text-rose-600">{error}</p>}
+
+          <div className="flex flex-wrap items-center gap-3">
+            {!isRecording ? (
+              <Button type="button" onClick={startRecording} size="lg">
+                Record video
+              </Button>
+            ) : (
+              <Button type="button" onClick={stopRecording} variant="destructive" size="lg">
+                Stop
+              </Button>
+            )}
+
+            <label className="cursor-pointer rounded-full border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-brand-200 hover:text-brand-700">
+              Upload instead
+              <input type="file" accept="video/*" onChange={handleFileUpload} className="hidden" />
+            </label>
+
+            <Button type="button" onClick={clearVideo} disabled={!videoUrl} variant="outline">
+              Clear
+            </Button>
+
+            <span className="text-sm text-slate-600">
+              {Math.floor(duration / 60)}:{String(duration % 60).padStart(2, '0')}
+            </span>
+          </div>
         </div>
-
-        {error && <p className="text-sm text-rose-600">{error}</p>}
-
-        <div className="flex flex-wrap items-center gap-3">
-          {!isRecording ? (
-            <button
-              type="button"
-              onClick={startRecording}
-              className="rounded-full bg-brand-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-700"
-            >
-              Record video
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={stopRecording}
-              className="rounded-full bg-rose-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
-            >
-              Stop
-            </button>
-          )}
-
-          <label className="cursor-pointer rounded-full border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-200 hover:text-brand-700">
-            Upload instead
-            <input type="file" accept="video/*" onChange={handleFileUpload} className="hidden" />
-          </label>
-
-          <button
-            type="button"
-            onClick={clearVideo}
-            disabled={!videoUrl}
-            className="rounded-full border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-brand-200 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Clear
-          </button>
-
-          <span className="text-sm text-slate-600">
-            {Math.floor(duration / 60)}:{String(duration % 60).padStart(2, '0')}
-          </span>
-        </div>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   )
 }
 
