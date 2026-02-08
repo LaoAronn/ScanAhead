@@ -74,7 +74,19 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
 
     try {
       const role = await withTimeout(fetchRole(user.id), 2000, 'Role lookup timed out')
-      set({ role, error: null })
+      const metadataRole = (user.user_metadata?.role as UserRole | undefined) ?? null
+      const resolvedRole = role ?? metadataRole
+
+      if (!role && metadataRole) {
+        await upsertProfile(
+          user.id,
+          user.email ?? '',
+          user.user_metadata?.full_name ?? 'User',
+          metadataRole,
+        )
+      }
+
+      set({ role: resolvedRole, error: resolvedRole ? null : 'User role not set' })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to load user profile'
       set({ role: null, error: message })

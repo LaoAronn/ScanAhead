@@ -7,7 +7,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-sm font-medium transition ${isActive ? 'text-brand-700' : 'text-slate-600 hover:text-slate-900'}`
 
 const Navbar = () => {
-  const { user, role, signOut } = useAuth()
+  const { user, role, loading, signOut } = useAuth()
 
   return (
     <header className="border-b border-slate-200 bg-white">
@@ -39,6 +39,9 @@ const Navbar = () => {
                 Doctor Hub
               </NavLink>
             </>
+          )}
+          {user && !loading && !role && (
+            <span className="text-sm text-slate-400">Loading profile...</span>
           )}
         </nav>
 

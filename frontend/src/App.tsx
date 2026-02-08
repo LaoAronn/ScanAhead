@@ -24,6 +24,15 @@ const HomeRedirect = () => {
     return <Navigate to="/login" replace />
   }
 
+  if (!role) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 text-slate-600">
+        <p>Loading your profile...</p>
+        <p className="text-sm text-slate-500">If this persists, ensure your user role is set.</p>
+      </div>
+    )
+  }
+
   if (role === 'doctor') {
     return <Navigate to="/doctor" replace />
   }

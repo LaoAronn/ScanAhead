@@ -14,8 +14,8 @@ const LoginForm = () => {
     setFormError(null)
     try {
       await signIn(email, password)
-      // On success, navigate to patient dashboard
-      navigate('/patient', { replace: true })
+      // Let the role-aware redirect decide where to go.
+      navigate('/', { replace: true })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (msg.toLowerCase().includes('api key not configured')) {
