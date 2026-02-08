@@ -62,6 +62,14 @@ function App() {
             }
           />
           <Route
+            path="/patient/cases/:id"
+            element={
+              <ProtectedRoute allowedRoles={['patient']}>
+                <CaseView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/doctor"
             element={
               <ProtectedRoute allowedRoles={['doctor']}>

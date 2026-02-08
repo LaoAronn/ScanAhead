@@ -18,7 +18,7 @@ const PROMPTS = [
   "What have you tried so far?"
 ]
 
-const VoiceRecorder = ({ onRecorded, onTranscribed }: VoiceRecorderProps) => {
+const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false)
   const [duration, setDuration] = useState(0)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)

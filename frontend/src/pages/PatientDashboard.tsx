@@ -67,9 +67,10 @@ const PatientDashboard = () => {
             <p className="text-sm text-slate-500">No submissions yet. Start a new case to begin.</p>
           )}
           {cases.map((item) => (
-            <div
+            <Link
               key={item.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3"
+              to={`/patient/cases/${item.id}`}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 transition hover:border-brand-200"
             >
               <div>
                 <p className="text-sm font-semibold text-slate-900">{item.body_part}</p>
@@ -80,7 +81,7 @@ const PatientDashboard = () => {
               <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[item.status] ?? ''}`}>
                 {item.status}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       </section>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { AiSummary, AppointmentDraft } from '../../lib/types'
 import { normalizeSummary, summarizeTranscription, transcribeVoiceNote } from '../../lib/api'
+import { uploadVideoToKiri } from '../../lib/kiri'
 import { useAuth } from '../../hooks/useAuth'
 import type { CapturedImage } from './CameraCapture'
 
@@ -114,6 +115,8 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
       }
 
       let videoPath: string | null = null
+      let kiriSerialize: string | null = null
+      let modelStatus: number | null = null
       if (captureMode === 'video' && video) {
         const extension = resolveVideoExtension(video)
         const contentType = video.type || `video/${extension}`
@@ -125,6 +128,21 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
         if (videoError) {
           throw new Error('Unable to upload video.')
         }
+
+        const kiriResponse = await uploadVideoToKiri(video, {
+          modelQuality: 1,
+          textureQuality: 1,
+          isMask: 1,
+          textureSmoothing: 1,
+          fileFormat: 'glb',
+        })
+
+        if (!kiriResponse?.data?.serialize) {
+          throw new Error('Unable to start 3D model generation.')
+        }
+
+        kiriSerialize = kiriResponse.data.serialize
+        modelStatus = 3
       }
 
       const audioPath = `${appointmentData.id}/voice-note.webm`
@@ -173,6 +191,8 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
         video_url: videoPath,
         transcription: transcriptionText,
         ai_summary: aiSummary,
+        kiri_serialize: kiriSerialize,
+        model_status: modelStatus,
       })
 
       if (caseError) {
