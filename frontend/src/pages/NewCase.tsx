@@ -21,6 +21,7 @@ const initialAppointment: AppointmentDraft = {
   preferredDate: '',
   preferredTime: '',
   chiefComplaint: '',
+  institutionId: '',
   preferredProvider: '',
   visitType: '',
 }
@@ -33,7 +34,7 @@ const steps = [
   },
   {
     id: 'schedule',
-    title: 'Provider & schedule',
+    title: 'Provider & Schedule',
     description: 'Choose a provider and request a time.',
   },
   {
