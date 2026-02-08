@@ -18,17 +18,17 @@ const PROMPTS = [
   "What have you tried so far?"
 ]
 
-const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps) => {
+const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false)
   const [duration, setDuration] = useState(0)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [detailedError, setDetailedError] = useState<string | null>(null)
-  const [showErrorDetails, setShowErrorDetails] = useState(false)
   const [showPrompts, setShowPrompts] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcription, setTranscription] = useState<string | null>(null)
+  const [transcriptionMeta, setTranscriptionMeta] = useState<{ transcription_id?: string; words?: any[] } | null>(null)
   const [liveTranscript, setLiveTranscript] = useState<string | null>(null)
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -93,7 +93,6 @@ const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps)
   const startRecording = async () => {
     setError(null)
     setDetailedError(null)
-    setShowErrorDetails(false)
     setLiveTranscript(null)
     setAudioUrl(null)
     setAudioBlob(null)
@@ -114,17 +113,26 @@ const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps)
           rec.lang = 'en-US'
           let accumulated = ''
           rec.onresult = (ev: any) => {
-            let interim = ''
+            // Recompute final transcript from scratch from the event results
+            // (ev.results contains all results so far). This avoids re-appending
+            // previously-finalized text and prevents duplication.
+            let finalTranscript = ''
+            let interimTranscript = ''
+
             for (let i = 0; i < ev.results.length; i++) {
               const result = ev.results[i]
               const text = result[0]?.transcript ?? ''
               if (result.isFinal) {
-                accumulated = accumulated ? `${accumulated} ${text}` : text
-              } else {
-                interim += text
+                finalTranscript = finalTranscript ? `${finalTranscript} ${text}` : text
+              } else if (i === ev.results.length - 1) {
+                // only consider the last non-final chunk as the interim
+                interimTranscript = text
               }
             }
-            setLiveTranscript((accumulated ? `${accumulated} ${interim}`.trim() : interim.trim()) || null)
+
+            accumulated = finalTranscript
+            const combined = (finalTranscript ? `${finalTranscript} ${interimTranscript}` : interimTranscript).trim()
+            setLiveTranscript(combined || null)
           }
           rec.onerror = (e: any) => {
             console.warn('SpeechRecognition error', e)
@@ -225,11 +233,22 @@ const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps)
     setIsTranscribing(true)
     setError(null)
     setDetailedError(null)
-    setShowErrorDetails(false)
 
     try {
-      const text = await transcribeAudio(audioBlob)
+      const result = await transcribeAudio(audioBlob)
+      // support both shapes (legacy string -> { text })
+      const text = (result as any).text ?? (result as any)
       setTranscription(text)
+      setTranscriptionMeta({
+        transcription_id: (result as any).transcription_id,
+        words: (result as any).words
+      })
+      try {
+        // persist final transcription so other components (e.g. CaseSubmission) can read it
+        localStorage.setItem('scanahead_transcription', text ?? '')
+      } catch {
+        /* ignore storage errors */
+      }
       onTranscribed?.(text)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -245,6 +264,11 @@ const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps)
         msg.toLowerCase().includes('endpoint')
       if (isNetworkLike && liveTranscript) {
         setTranscription(liveTranscript)
+        try {
+          localStorage.setItem('scanahead_transcription', liveTranscript ?? '')
+        } catch {
+          /* ignore */
+        }
         onTranscribed?.(liveTranscript)
         // removed fallback error message per request; use live transcript silently
       } else if (isNetworkLike && !liveTranscript) {
@@ -391,6 +415,20 @@ const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps)
                 'Transcribe'
               )}
             </button>
+
+            {/* Transcription metadata displayed right below the transcribe button */}
+            {transcriptionMeta && (
+              <div className="mt-2 w-full">
+                {transcriptionMeta.transcription_id && (
+                  <p className="text-xs text-slate-500">Transcription ID: {transcriptionMeta.transcription_id}</p>
+                )}
+                {transcriptionMeta.words && (
+                  <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-slate-50 p-2 text-xs text-slate-700">
+                    {JSON.stringify(transcriptionMeta.words, null, 2)}
+                  </pre>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

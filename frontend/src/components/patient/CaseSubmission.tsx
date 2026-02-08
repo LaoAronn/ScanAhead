@@ -13,10 +13,12 @@ interface CaseSubmissionProps {
   audio: Blob | null
   video: Blob | null
   captureMode: 'photos' | 'video'
+  // optional transcription coming from the VoiceRecorder component
+  transcriptionText?: string | null
   onSubmitted?: (caseId: string) => void
 }
 
-const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMode, onSubmitted }: CaseSubmissionProps) => {
+const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMode, transcriptionText: providedTranscription, onSubmitted }: CaseSubmissionProps) => {
   const { user, role } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -154,10 +156,21 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
         throw new Error('Unable to upload voice note.')
       }
 
-      let transcriptionText: string | null = null
+      // Prefer transcription provided from the VoiceRecorder (if any).
+      // If none provided, fall back to the persisted transcription saved by VoiceRecorder.
+      let transcriptionText: string | null = providedTranscription ?? null
+      if (!transcriptionText) {
+        try {
+          const saved = localStorage.getItem('scanahead_transcription')
+          if (saved && saved.trim().length > 0) transcriptionText = saved
+        } catch {
+          /* ignore localStorage errors */
+        }
+      }
       let aiSummary: AiSummary | null = null
 
-      if (import.meta.env.VITE_TRANSCRIBE_API_URL) {
+      // Only call remote transcription if we don't already have a provided transcription
+      if (!transcriptionText && import.meta.env.VITE_TRANSCRIBE_API_URL) {
         try {
           const transcriptionPayload = await transcribeVoiceNote(audio)
           const textCandidate =
@@ -197,6 +210,13 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
 
       if (caseError) {
         throw new Error('Unable to submit case.')
+      }
+
+      // Clear saved transcription after successful submit
+      try {
+        localStorage.removeItem('scanahead_transcription')
+      } catch {
+        /* ignore */
       }
 
       setSuccessId(appointmentData.id)
