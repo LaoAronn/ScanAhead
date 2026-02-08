@@ -245,7 +245,7 @@ const VoiceRecorder = ({ onRecorded, onTranscribed }: VoiceRecorderProps) => {
       if (isNetworkLike && liveTranscript) {
         setTranscription(liveTranscript)
         onTranscribed?.(liveTranscript)
-        setError('Using local (browser) speech recognition fallback. Results may be less accurate than server transcription.')
+        // removed fallback error message per request; use live transcript silently
       } else if (isNetworkLike && !liveTranscript) {
         setError(
           'Unable to reach the transcription service and no browser fallback available. Ensure your backend endpoint is running or try recording again.'
@@ -317,20 +317,9 @@ const VoiceRecorder = ({ onRecorded, onTranscribed }: VoiceRecorderProps) => {
         <div className="mt-3">
           <p className="text-sm text-rose-600">{error}</p>
           {detailedError && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setShowErrorDetails((s) => !s)}
-                className="text-xs text-slate-500 underline"
-              >
-                {showErrorDetails ? 'Hide details' : 'Show details'}
-              </button>
-              {showErrorDetails && (
-                <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-slate-100 p-2 text-xs text-slate-700">
-                  {detailedError}
-                </pre>
-              )}
-            </div>
+            <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-slate-100 p-2 text-xs text-slate-700">
+              {detailedError}
+            </pre>
           )}
         </div>
       )}
