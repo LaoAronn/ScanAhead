@@ -255,25 +255,25 @@ const NewCase = () => {
 
   return (
     <div className="space-y-8">
-      <Card className="overflow-hidden border-none bg-gradient-to-r from-brand-600 via-brand-500 to-sky-400 text-white shadow-lg">
+      <Card className="overflow-hidden border border-slate-200 bg-white shadow-sm">
         <CardContent className="space-y-4 px-8 py-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-white/70">New Case</p>
-              <h1 className="mt-2 text-3xl font-semibold">Start a new medical case</h1>
-              <p className="mt-2 text-sm text-white/80">
+              <p className="text-xs uppercase tracking-[0.2em] text-brand-600">New Case</p>
+              <h1 className="mt-2 text-3xl font-semibold text-slate-900">Start a new medical case</h1>
+              <p className="mt-2 text-sm text-slate-500">
                 A guided intake experience with medical-grade capture and review.
               </p>
             </div>
-            <div className="rounded-2xl bg-white/15 px-4 py-3 text-sm">
-              <p className="text-xs text-white/70">Step</p>
-              <p className="text-lg font-semibold">{currentStep + 1} / {steps.length}</p>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              <p className="text-xs text-slate-500">Step</p>
+              <p className="text-lg font-semibold text-slate-900">{currentStep + 1} / {steps.length}</p>
             </div>
           </div>
 
           <div className="space-y-3">
-            <Progress value={progressValue} className="bg-white/20" />
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-white/70">
+            <Progress value={progressValue} />
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
               <span>{steps[currentStep]?.title}</span>
               <span>{Math.round(progressValue)}% complete</span>
             </div>
