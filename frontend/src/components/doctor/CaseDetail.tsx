@@ -6,6 +6,9 @@ import type { AiSummary } from '../../lib/types'
 import { supabase } from '../../lib/supabase'
 import { extractFirstGlbFromZip } from '../../lib/zip'
 import { getKiriModelStatus, getKiriModelZip } from '../../lib/kiri'
+import { Badge } from '../ui/badge'
+import { Button } from '../ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 
 interface CaseDetailProps {
   appointmentId: string
@@ -22,6 +25,12 @@ interface CaseDetailProps {
   kiriSerialize?: string | null
   modelStatus?: number | null
   caseSubmissionId?: string | null
+}
+
+const statusPillStyles: Record<CaseDetailProps['status'], string> = {
+  submitted: 'border border-emerald-300 bg-emerald-100 text-emerald-800',
+  reviewing: 'border border-amber-200 bg-amber-50 text-amber-700',
+  completed: 'border border-slate-200 bg-slate-100 text-slate-600',
 }
 
 const CaseDetail = ({
@@ -47,6 +56,7 @@ const CaseDetail = ({
   const [kiriStatus, setKiriStatus] = useState<number | null>(modelStatus ?? null)
   const [modelLoading, setModelLoading] = useState(false)
   const [modelError, setModelError] = useState<string | null>(null)
+  const statusText = status.charAt(0).toUpperCase() + status.slice(1)
 
   const statusLabel = useMemo(() => {
     switch (kiriStatus) {
@@ -184,119 +194,150 @@ const CaseDetail = ({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">{patientName}</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {bodyPart} · Submitted {new Date(createdAt).toLocaleString()}
-            </p>
+      <Card>
+        <CardHeader className="bg-slate-50">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <CardTitle>{patientName}</CardTitle>
+              <CardDescription>
+                {bodyPart} · Submitted {new Date(createdAt).toLocaleString()}
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className={statusPillStyles[status]}>{statusText}</Badge>
+              <Badge variant="outline">ID {appointmentId}</Badge>
+            </div>
           </div>
-          <span className="rounded-full border border-slate-200 px-4 py-1 text-xs font-semibold text-slate-600">
-            {status}
-          </span>
-        </div>
-      </section>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs uppercase text-slate-500">Case status</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{statusText}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs uppercase text-slate-500">Body area</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{bodyPart}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs uppercase text-slate-500">Created</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">
+                {new Date(createdAt).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900">AI summary</h3>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl bg-slate-50 p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>AI summary</CardTitle>
+          <CardDescription>Auto-generated from the voice note.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs uppercase text-slate-500">Symptoms</p>
             <p className="mt-2 text-sm text-slate-700">
               {summary?.symptoms?.length ? summary.symptoms.join(', ') : 'Pending transcription'}
             </p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs uppercase text-slate-500">Duration</p>
             <p className="mt-2 text-sm text-slate-700">{summary?.duration ?? 'Pending'}</p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs uppercase text-slate-500">Severity</p>
             <p className="mt-2 text-sm text-slate-700">{summary?.severity ?? 'Pending'}</p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs uppercase text-slate-500">Concerns</p>
             <p className="mt-2 text-sm text-slate-700">{summary?.concerns ?? 'Pending'}</p>
           </div>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {images.length > 0 && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Submitted images</h3>
-          <div className="mt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Submitted images</CardTitle>
+            <CardDescription>Captured angles for clinician review.</CardDescription>
+          </CardHeader>
+          <CardContent>
             <ImageGallery images={images} />
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       )}
 
       {videoUrl && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Submitted video</h3>
-          <div className="mt-4">
-            <video controls src={videoUrl} className="aspect-video w-full rounded-xl" />
-          </div>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Submitted video</CardTitle>
+            <CardDescription>Motion and texture review.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <video controls src={videoUrl} className="aspect-video w-full rounded-2xl" />
+          </CardContent>
+        </Card>
       )}
 
       {audioUrl && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Voice note</h3>
-          <div className="mt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Voice note</CardTitle>
+            <CardDescription>Patient-recorded note.</CardDescription>
+          </CardHeader>
+          <CardContent>
             <audio controls src={audioUrl} className="w-full" />
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       )}
 
       {transcription && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Transcription</h3>
-          <p className="mt-3 text-sm text-slate-700">{transcription}</p>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Transcription</CardTitle>
+            <CardDescription>Converted from the voice note.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-700">{transcription}</p>
+          </CardContent>
+        </Card>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">3D model viewer</h3>
-            <p className="mt-1 text-sm text-slate-500">Status: {statusLabel}</p>
-          </div>
-          {kiriSerialize && !modelUrl && (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleCheckStatus}
-                className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700"
-              >
-                Check status
-              </button>
-              {kiriStatus === 2 && (
-                <button
-                  type="button"
-                  onClick={handleDownloadModel}
-                  disabled={modelLoading}
-                  className="rounded-full bg-brand-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {modelLoading ? 'Preparing model...' : 'Download model'}
-                </button>
-              )}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>3D model viewer</CardTitle>
+              <CardDescription>Status: {statusLabel}</CardDescription>
             </div>
-          )}
-        </div>
-        {modelError && <p className="mt-3 text-sm text-rose-600">{modelError}</p>}
-        <div className="mt-4 h-[360px]">
-          <ModelViewer modelUrl={modelUrl ?? ''} />
-        </div>
-      </section>
+            {kiriSerialize && !modelUrl && (
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={handleCheckStatus}>
+                  Check status
+                </Button>
+                {kiriStatus === 2 && (
+                  <Button type="button" size="sm" onClick={handleDownloadModel} disabled={modelLoading}>
+                    {modelLoading ? 'Preparing model...' : 'Download model'}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {modelError && <p className="mb-3 text-sm text-rose-600">{modelError}</p>}
+          <div className="h-[360px] rounded-2xl border border-slate-200 bg-slate-50">
+            <ModelViewer modelUrl={modelUrl ?? ''} />
+          </div>
+        </CardContent>
+      </Card>
 
       <DoctorNotes value={notes} onChange={setNotes} />
 
       <section className="flex flex-wrap gap-3">
-        <button className="rounded-full bg-brand-600 px-5 py-2 text-sm font-semibold text-white">Mark reviewing</button>
-        <button className="rounded-full border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-700">
-          Mark completed
-        </button>
+        <Button className="px-5" size="lg">Mark reviewing</Button>
+        <Button variant="outline" size="lg">Mark completed</Button>
       </section>
     </div>
   )
