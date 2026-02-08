@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 interface UseCasesOptions {
   searchTerm?: string
   statusFilter?: 'submitted' | 'reviewing' | 'completed' | 'all'
+  patientId?: string | null
 }
 
 const demoCases: CaseSummary[] = [
@@ -39,10 +40,16 @@ export const useCases = (options: UseCasesOptions = {}) => {
       return
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('appointments')
-      .select('id, body_part, status, created_at, users(full_name)')
+      .select('id, body_part, status, created_at, users!appointments_patient_id_fkey(full_name)')
       .order('created_at', { ascending: false })
+
+    if (options.patientId) {
+      query = query.eq('patient_id', options.patientId)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       setError(error.message)
@@ -66,7 +73,7 @@ export const useCases = (options: UseCasesOptions = {}) => {
 
     setCases(mapped)
     setLoading(false)
-  }, [])
+  }, [options.patientId])
 
   useEffect(() => {
     fetchCases()

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AppointmentForm from '../components/patient/AppointmentForm'
 import BodyPartSelector from '../components/patient/BodyPartSelector'
 import CameraCapture from '../components/patient/CameraCapture'
@@ -7,7 +8,7 @@ import VoiceRecorder from '../components/patient/VoiceRecorder'
 import CaseSubmission from '../components/patient/CaseSubmission'
 import type { AppointmentDraft } from '../lib/types'
 import type { CapturedImage } from '../components/patient/CameraCapture'
-import { loadNewCaseDraft, saveNewCaseDraft } from '../lib/draftStorage'
+import { clearNewCaseDraft, loadNewCaseDraft, saveNewCaseDraft } from '../lib/draftStorage'
 
 const initialAppointment: AppointmentDraft = {
   patientName: '',
@@ -18,6 +19,7 @@ const initialAppointment: AppointmentDraft = {
 }
 
 const NewCase = () => {
+  const navigate = useNavigate()
   const [appointment, setAppointment] = useState<AppointmentDraft>(initialAppointment)
   const [bodyPart, setBodyPart] = useState<string>('')
   const [images, setImages] = useState<CapturedImage[]>([])
@@ -125,6 +127,16 @@ const NewCase = () => {
         audio={audio}
         video={video}
         captureMode={captureMode}
+        onSubmitted={async () => {
+          await clearNewCaseDraft()
+          setAppointment(initialAppointment)
+          setBodyPart('')
+          setImages([])
+          setVideo(null)
+          setAudio(null)
+          setCaptureMode('photos')
+          navigate('/patient', { replace: true })
+        }}
       />
 
     </div>
