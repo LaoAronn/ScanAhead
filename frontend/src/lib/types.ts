@@ -22,12 +22,7 @@ export interface Appointment {
   created_at: string
 }
 
-export interface AiSummary {
-  symptoms: string[]
-  duration: string
-  severity: string
-  concerns: string
-}
+export type AiSummary = string
 
 export interface CaseSubmission {
   id: string

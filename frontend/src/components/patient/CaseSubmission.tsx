@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { AiSummary, AppointmentDraft } from '../../lib/types'
-import { normalizeSummary, summarizeTranscription, transcribeVoiceNote } from '../../lib/api'
+import { summarizeCaseWithGemini } from '../../lib/api'
 import { uploadVideoToKiri } from '../../lib/kiri'
 import { useAuth } from '../../hooks/useAuth'
 import type { CapturedImage } from './CameraCapture'
@@ -182,31 +182,18 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
       }
       let aiSummary: AiSummary | null = null
 
-      // Only call remote transcription if we don't already have a provided transcription
-      if (!transcriptionText && import.meta.env.VITE_TRANSCRIBE_API_URL) {
+      if (transcriptionText && import.meta.env.VITE_GEMINI_API_KEY) {
         try {
-          const transcriptionPayload = await transcribeVoiceNote(audio)
-          const textCandidate =
-            typeof transcriptionPayload?.text === 'string'
-              ? transcriptionPayload.text
-              : typeof transcriptionPayload?.transcription === 'string'
-                ? transcriptionPayload.transcription
-                : null
-
-          if (textCandidate) {
-            transcriptionText = textCandidate
-          }
-        } catch (transcriptionError) {
-          console.warn('Unable to transcribe voice note', transcriptionError)
-        }
-      }
-
-      if (transcriptionText && import.meta.env.VITE_SUMMARY_API_URL) {
-        try {
-          const summaryPayload = await summarizeTranscription(transcriptionText)
-          aiSummary = normalizeSummary(summaryPayload)
+          aiSummary = await summarizeCaseWithGemini({
+            transcription: transcriptionText,
+            bodyPart,
+            problem: appointment.chiefComplaint,
+            preferredDate: appointment.preferredDate,
+            preferredTime: appointment.preferredTime,
+            captureMode,
+          })
         } catch (summaryError) {
-          console.warn('Unable to summarize transcription', summaryError)
+          console.warn('Unable to summarize transcription with Gemini', summaryError)
         }
       }
 

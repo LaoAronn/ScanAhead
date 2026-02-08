@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { transcribeAudio } from '../../lib/transcription'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 
@@ -236,6 +235,16 @@ const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps)
     setShowPrompts(false)
     stopWaveform()
 
+    if (!transcription && liveTranscript) {
+      setTranscription(liveTranscript)
+      try {
+        localStorage.setItem('scanahead_transcription', liveTranscript)
+      } catch {
+        /* ignore */
+      }
+      onTranscribed?.(liveTranscript)
+    }
+
     try {
       if (recognitionRef.current) {
         recognitionRef.current.stop?.()
@@ -254,8 +263,13 @@ const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps)
   }
 
   const handleTranscribe = async () => {
-    if (!audioBlob) {
-      setError('No audio to transcribe')
+    if (transcription) {
+      onTranscribed?.(transcription)
+      return
+    }
+
+    if (!liveTranscript) {
+      setError('No transcript captured yet. Try recording again and speak clearly.')
       return
     }
 
@@ -263,51 +277,16 @@ const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps)
     setError(null)
     setDetailedError(null)
 
+    const text = liveTranscript.trim()
+    setTranscription(text)
+    setTranscriptionMeta(null)
     try {
-      const result = (await transcribeAudio(audioBlob)) as TranscriptionResponse
-      const text = typeof result === 'string'
-        ? result
-        : result.text ?? result.transcription ?? ''
-      setTranscription(text)
-      setTranscriptionMeta({
-        transcription_id: typeof result === 'string' ? undefined : result.transcription_id,
-        words: typeof result === 'string' ? undefined : result.words,
-      })
-      try {
-        localStorage.setItem('scanahead_transcription', text ?? '')
-      } catch {
-        /* ignore storage errors */
-      }
-      onTranscribed?.(text)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error('Transcription error:', err)
-      setDetailedError(msg)
-
-      const isNetworkLike =
-        msg.includes('Failed to fetch') ||
-        msg.toLowerCase().includes('networkerror') ||
-        msg.toLowerCase().includes('network error') ||
-        msg.toLowerCase().includes('transcription endpoint not found') ||
-        msg.toLowerCase().includes('endpoint')
-      if (isNetworkLike && liveTranscript) {
-        setTranscription(liveTranscript)
-        try {
-          localStorage.setItem('scanahead_transcription', liveTranscript ?? '')
-        } catch {
-          /* ignore */
-        }
-        onTranscribed?.(liveTranscript)
-      } else if (isNetworkLike && !liveTranscript) {
-        setError(
-          'Unable to reach the transcription service and no browser fallback available. Ensure your backend endpoint is running or try recording again.',
-        )
-      } else {
-        setError(msg)
-      }
-    } finally {
-      setIsTranscribing(false)
+      localStorage.setItem('scanahead_transcription', text)
+    } catch {
+      /* ignore storage errors */
     }
+    onTranscribed?.(text)
+    setIsTranscribing(false)
   }
 
   useEffect(() => {
@@ -419,7 +398,7 @@ const VoiceRecorder = ({ value, onRecorded, onTranscribed }: VoiceRecorderProps)
             <>
               <audio controls src={audioUrl} className="flex-1 max-w-sm" />
               <Button type="button" onClick={handleTranscribe} variant="outline" disabled={isTranscribing}>
-                {isTranscribing ? 'Transcribing...' : 'Transcribe'}
+                {isTranscribing ? 'Saving transcript...' : 'Use transcript'}
               </Button>
             </>
           )}

@@ -14,7 +14,7 @@ app.use(cors())
 app.use(express.json())
 
 const KIRI_BASE_URL = process.env.KIRI_ENGINE_BASE_URL || 'https://api.kiriengine.app/api'
-const KIRI_API_KEY = process.env.KIRI_ENGINE_API_KEY || process.env.VITE_KIRI_ENGINE_API_KEY
+const KIRI_API_KEY = process.env.VITE_KIRI_ENGINE_API_KEY || process.env.KIRI_ENGINE_API_KEY
 
 const requireKiriKey = (res) => {
   if (!KIRI_API_KEY) {
@@ -34,7 +34,7 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No audio file provided' })
     }
 
-    const apiKey = process.env.VITE_ELEVENLABS_API_KEY
+    const apiKey = process.env.VITE_ELEVENLABS_API_KEY || process.env.ELEVENLABS_API_KEY
 
     if (!apiKey) {
       return res.status(500).json({ error: 'API key not configured' })

@@ -240,27 +240,12 @@ const CaseDetail = ({
 
       <Card>
         <CardHeader>
-          <CardTitle>AI summary</CardTitle>
+          <CardTitle>Summary</CardTitle>
           <CardDescription>Auto-generated from the voice note.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+        <CardContent>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs uppercase text-slate-500">Symptoms</p>
-            <p className="mt-2 text-sm text-slate-700">
-              {summary?.symptoms?.length ? summary.symptoms.join(', ') : 'Pending transcription'}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs uppercase text-slate-500">Duration</p>
-            <p className="mt-2 text-sm text-slate-700">{summary?.duration ?? 'Pending'}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs uppercase text-slate-500">Severity</p>
-            <p className="mt-2 text-sm text-slate-700">{summary?.severity ?? 'Pending'}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs uppercase text-slate-500">Concerns</p>
-            <p className="mt-2 text-sm text-slate-700">{summary?.concerns ?? 'Pending'}</p>
+            <p className="text-sm text-slate-700">{summary ?? 'Pending transcription'}</p>
           </div>
         </CardContent>
       </Card>

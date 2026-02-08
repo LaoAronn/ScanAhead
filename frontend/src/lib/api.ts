@@ -1,5 +1,7 @@
-import type { AiSummary } from './types'
+import { GoogleGenAI } from '@google/genai'
 
+let genAiClient: GoogleGenAI | null = null
+let genAiKey: string | null = null
 export const transcribeVoiceNote = async (audio: Blob) => {
   const endpoint = import.meta.env.VITE_TRANSCRIBE_API_URL as string | undefined
 
@@ -22,34 +24,44 @@ export const transcribeVoiceNote = async (audio: Blob) => {
   return response.json()
 }
 
-export const summarizeTranscription = async (transcription: string) => {
-  const endpoint = import.meta.env.VITE_SUMMARY_API_URL as string | undefined
-
-  if (!endpoint) {
-    throw new Error('Summary API URL is missing. Set VITE_SUMMARY_API_URL.')
-  }
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ text: transcription }),
-  })
-
-  if (!response.ok) {
-    throw new Error('Unable to summarize transcription')
-  }
-
-  return response.json()
+type GeminiSummaryInput = {
+  transcription: string
+  bodyPart: string
+  problem: string
+  preferredDate: string
+  preferredTime: string
+  captureMode: 'photos' | 'video'
+  providerName?: string
 }
 
-export const normalizeSummary = (payload: Partial<AiSummary> | null): AiSummary => ({
-  symptoms: payload?.symptoms ?? [],
-  duration: payload?.duration ?? 'Unknown',
-  severity: payload?.severity ?? 'Unknown',
-  concerns: payload?.concerns ?? 'None noted',
-})
+export const summarizeCaseWithGemini = async (input: GeminiSummaryInput) => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
+
+  if (!apiKey) {
+    throw new Error('Gemini API key is missing. Set VITE_GEMINI_API_KEY.')
+  }
+
+  if (!genAiClient || genAiKey !== apiKey) {
+    genAiClient = new GoogleGenAI({ apiKey })
+    genAiKey = apiKey
+  }
+
+  const model = import.meta.env.VITE_GEMINI_MODEL || 'gemini-3-flash-preview'
+  const prompt = `You are assisting a clinician. Write a concise, clinical-style summary in 3-5 sentences.\n\nPatient submission:\n- Body area: ${input.bodyPart}\n- Problem/issue: ${input.problem}\n- Preferred appointment: ${input.preferredDate} at ${input.preferredTime}\n- Capture mode: ${input.captureMode}\n- Selected clinician: ${input.providerName ?? 'Not specified'}\n- Transcript: ${input.transcription}\n\nReturn only the summary text.`
+
+  const response = await genAiClient.models.generateContent({
+    model,
+    contents: prompt,
+  })
+
+  const text = response.text
+
+  if (typeof text !== 'string' || text.trim().length === 0) {
+    throw new Error('Gemini summary response was empty')
+  }
+
+  return text.trim()
+}
 
 // TODO: Integrate depth estimation with TensorFlow.js
 // TODO: Add Polycam API for 3D reconstruction
