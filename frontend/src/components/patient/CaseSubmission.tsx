@@ -16,7 +16,7 @@ interface CaseSubmissionProps {
 }
 
 const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMode, onSubmitted }: CaseSubmissionProps) => {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successId, setSuccessId] = useState<string | null>(null)
@@ -54,6 +54,19 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
         return
       }
 
+      const profilePayload = {
+        id: user.id,
+        email: user.email ?? appointment.email,
+        full_name: appointment.patientName || user.user_metadata?.full_name || 'Patient',
+        role: role ?? 'patient',
+      }
+
+      const { error: profileError } = await supabase.from('users').upsert(profilePayload)
+
+      if (profileError) {
+        throw new Error(`Unable to create patient profile. ${profileError.message}`)
+      }
+
       const { data: appointmentData, error: appointmentError } = await supabase
         .from('appointments')
         .insert({
@@ -70,7 +83,8 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
         .single()
 
       if (appointmentError || !appointmentData) {
-        throw new Error('Unable to create appointment.')
+        const message = appointmentError?.message ?? 'Unable to create appointment.'
+        throw new Error(message)
       }
 
       const imageUrls: string[] = []
