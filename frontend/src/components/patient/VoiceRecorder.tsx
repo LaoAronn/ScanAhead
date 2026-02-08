@@ -18,7 +18,7 @@ const PROMPTS = [
   "What have you tried so far?"
 ]
 
-const VoiceRecorder = ({ onRecorded, onTranscribed }: VoiceRecorderProps) => {
+const VoiceRecorder = ({value, onRecorded, onTranscribed }: VoiceRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false)
   const [duration, setDuration] = useState(0)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
@@ -246,6 +246,12 @@ const VoiceRecorder = ({ onRecorded, onTranscribed }: VoiceRecorderProps) => {
         transcription_id: (result as any).transcription_id,
         words: (result as any).words
       })
+      try {
+        // persist final transcription so other components (e.g. CaseSubmission) can read it
+        localStorage.setItem('scanahead_transcription', text ?? '')
+      } catch {
+        /* ignore storage errors */
+      }
       onTranscribed?.(text)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -261,6 +267,11 @@ const VoiceRecorder = ({ onRecorded, onTranscribed }: VoiceRecorderProps) => {
         msg.toLowerCase().includes('endpoint')
       if (isNetworkLike && liveTranscript) {
         setTranscription(liveTranscript)
+        try {
+          localStorage.setItem('scanahead_transcription', liveTranscript ?? '')
+        } catch {
+          /* ignore */
+        }
         onTranscribed?.(liveTranscript)
         // removed fallback error message per request; use live transcript silently
       } else if (isNetworkLike && !liveTranscript) {
