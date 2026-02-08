@@ -3,8 +3,10 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
   // Candidate endpoints (order matters)
   const env = (typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined) || {}
   const envEndpoint = env.VITE_ELEVENLABS_API_KEY as string | undefined
+  const serverUrl = env.VITE_SERVER_URL || 'http://localhost:3001'
 
   const candidates = [
+  '${serverUrl}/api/transcribe', ,
   'http://localhost:3001/api/transcribe',  // Add this
   envEndpoint,
   '/api/transcribe',

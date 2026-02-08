@@ -13,6 +13,12 @@ const upload = multer()
 app.use(cors())
 app.use(express.json())
 
+// Update CORS to allow all origins (or specify your mobile IP)
+app.use(cors({
+  origin: '*',  // Allow all origins, or use specific IP like 'http://192.168.1.100:5173'
+  credentials: true
+}))
+
 const KIRI_BASE_URL = process.env.KIRI_ENGINE_BASE_URL || 'https://api.kiriengine.app/api'
 const KIRI_API_KEY = process.env.VITE_KIRI_ENGINE_API_KEY || process.env.KIRI_ENGINE_API_KEY
 

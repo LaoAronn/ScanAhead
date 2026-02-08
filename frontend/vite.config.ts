@@ -8,5 +8,8 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:3001',
     },
+    host: '0.0.0.0',  // Allow external access
+    port: 5174,        // Default Vite port
+    strictPort: true,
   },
 })
