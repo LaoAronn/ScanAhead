@@ -47,7 +47,7 @@ const AppointmentForm = ({ value, onChange }: AppointmentFormProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="chiefComplaint">Chief complaint</Label>
+          <Label htmlFor="chiefComplaint">Problem or issue</Label>
           <Textarea
             id="chiefComplaint"
             required

@@ -26,6 +26,12 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
   const [error, setError] = useState<string | null>(null)
   const [successId, setSuccessId] = useState<string | null>(null)
 
+  const isUuid = (value: string | undefined) =>
+    Boolean(
+      value &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value),
+    )
+
   const handleSubmit = async () => {
     setLoading(true)
     setError(null)
@@ -72,10 +78,15 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMo
         throw new Error(`Unable to create patient profile. ${profileError.message}`)
       }
 
+      const assignedDoctorId = isUuid(appointment.preferredProvider)
+        ? appointment.preferredProvider
+        : null
+
       const { data: appointmentData, error: appointmentError } = await supabase
         .from('appointments')
         .insert({
           patient_id: user.id,
+          assigned_doctor_id: assignedDoctorId,
           patient_name: appointment.patientName,
           patient_email: appointment.email,
           body_part: bodyPart,

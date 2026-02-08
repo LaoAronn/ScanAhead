@@ -20,6 +20,7 @@ type DoctorAvailability = {
 type DoctorProfile = {
   id: string
   name: string
+  email?: string
   specialty: string
   location: string
   visitTypes: Array<'telehealth' | 'in-person' | 'urgent'>
@@ -41,6 +42,22 @@ const institutions: InstitutionProfile[] = [
     city: 'Seattle, WA',
     tagline: 'Multi-specialty imaging with rapid triage.',
     doctors: [
+      {
+        id: '9e2fc9a6-0881-4547-bbfc-b30852a4024c',
+        name: 'Dr. Quazi',
+        email: 'quazi12@student.ubc.ca',
+        specialty: 'Imaging Review',
+        location: 'ScanAhead Medical Center',
+        visitTypes: ['telehealth', 'in-person'],
+        availability: {
+          weeklySlots: {
+            1: ['9:15 AM', '11:45 AM', '2:15 PM', '4:15 PM'],
+            3: ['9:00 AM', '12:00 PM', '2:30 PM', '4:30 PM'],
+            5: ['10:00 AM', '12:30 PM', '3:30 PM'],
+          },
+          busyDates: ['2026-02-09', '2026-02-23'],
+        },
+      },
       {
         id: 'dr-patel',
         name: 'Dr. Priya Patel',
@@ -341,6 +358,9 @@ const AppointmentScheduler = ({ value, onChange }: AppointmentSchedulerProps) =>
                     )}
                   >
                     <p className="text-sm font-semibold text-slate-900">{doctor.name}</p>
+                    {doctor.email && (
+                      <p className="mt-1 text-xs text-slate-400">{doctor.email}</p>
+                    )}
                     <p className="mt-1 text-sm text-slate-500">{doctor.specialty}</p>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
                       {doctor.visitTypes.map((type) => (

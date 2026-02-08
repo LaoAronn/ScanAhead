@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCases } from '../../hooks/useCases'
+import { useAuth } from '../../hooks/useAuth'
 
 const statusStyles: Record<string, string> = {
   submitted: 'border border-emerald-700 bg-emerald-600 text-white',
@@ -9,9 +10,11 @@ const statusStyles: Record<string, string> = {
 }
 
 const CaseList = () => {
+  const { user, role } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'submitted' | 'reviewing' | 'completed'>('all')
-  const { cases, loading, error } = useCases({ searchTerm, statusFilter })
+  const assignedDoctorId = role === 'doctor' ? user?.id ?? null : null
+  const { cases, loading, error } = useCases({ searchTerm, statusFilter, assignedDoctorId })
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

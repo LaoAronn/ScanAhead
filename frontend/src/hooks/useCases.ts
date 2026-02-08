@@ -6,6 +6,7 @@ interface UseCasesOptions {
   searchTerm?: string
   statusFilter?: 'submitted' | 'reviewing' | 'completed' | 'all'
   patientId?: string | null
+  assignedDoctorId?: string | null
 }
 
 const demoCases: CaseSummary[] = [
@@ -49,6 +50,10 @@ export const useCases = (options: UseCasesOptions = {}) => {
       query = query.eq('patient_id', options.patientId)
     }
 
+    if (options.assignedDoctorId) {
+      query = query.eq('assigned_doctor_id', options.assignedDoctorId)
+    }
+
     const { data, error } = await query
 
     if (error) {
@@ -73,7 +78,7 @@ export const useCases = (options: UseCasesOptions = {}) => {
 
     setCases(mapped)
     setLoading(false)
-  }, [options.patientId])
+  }, [options.assignedDoctorId, options.patientId])
 
   useEffect(() => {
     fetchCases()

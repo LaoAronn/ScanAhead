@@ -214,7 +214,7 @@ const NewCase = () => {
 
                 {appointment.chiefComplaint && (
                   <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-xs uppercase text-slate-500">Chief complaint</p>
+                    <p className="text-xs uppercase text-slate-500">Problem or issue</p>
                     <p className="mt-2 text-sm text-slate-700">{appointment.chiefComplaint}</p>
                   </div>
                 )}
