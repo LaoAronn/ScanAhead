@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 
 interface VoiceRecorderProps {
+  value?: Blob | null
   onRecorded?: (audio: Blob) => void
 }
 
 const MAX_DURATION = 120
 const WARNING_AT = 105
 
-const VoiceRecorder = ({ onRecorded }: VoiceRecorderProps) => {
+const VoiceRecorder = ({ value, onRecorded }: VoiceRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false)
   const [duration, setDuration] = useState(0)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
@@ -135,6 +136,18 @@ const VoiceRecorder = ({ onRecorded }: VoiceRecorderProps) => {
       window.clearInterval(timerRef.current)
     }
   }
+
+  useEffect(() => {
+    if (!value) {
+      setAudioUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(value)
+    setAudioUrl(url)
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [value])
 
   useEffect(() => {
     return () => {
