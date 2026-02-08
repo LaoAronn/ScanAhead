@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { AppointmentDraft } from '../../lib/types'
+import type { AiSummary, AppointmentDraft } from '../../lib/types'
+import { normalizeSummary, summarizeTranscription, transcribeVoiceNote } from '../../lib/api'
 import { useAuth } from '../../hooks/useAuth'
 import type { CapturedImage } from './CameraCapture'
 
@@ -23,7 +24,10 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
     setError(null)
 
     try {
-      if (!appointment.patientName || !appointment.email || !appointment.preferredDate) {
+      if (!user) {
+        throw new Error('Please sign in before submitting a case.')
+      }
+      if (!appointment.patientName || !appointment.email || !appointment.preferredDate || !appointment.preferredTime) {
         throw new Error('Please complete the appointment details.')
       }
       if (!bodyPart) {
@@ -48,10 +52,13 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
       const { data: appointmentData, error: appointmentError } = await supabase
         .from('appointments')
         .insert({
-          patient_id: user?.id,
+          patient_id: user.id,
+          patient_name: appointment.patientName,
+          patient_email: appointment.email,
           body_part: bodyPart,
           chief_complaint: appointment.chiefComplaint,
           preferred_date: appointment.preferredDate,
+          preferred_time: appointment.preferredTime,
           status: 'submitted',
         })
         .select('id')
@@ -86,10 +93,42 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
         throw new Error('Unable to upload voice note.')
       }
 
+      let transcriptionText: string | null = null
+      let aiSummary: AiSummary | null = null
+
+      if (import.meta.env.VITE_TRANSCRIBE_API_URL) {
+        try {
+          const transcriptionPayload = await transcribeVoiceNote(audio)
+          const textCandidate =
+            typeof transcriptionPayload?.text === 'string'
+              ? transcriptionPayload.text
+              : typeof transcriptionPayload?.transcription === 'string'
+                ? transcriptionPayload.transcription
+                : null
+
+          if (textCandidate) {
+            transcriptionText = textCandidate
+          }
+        } catch (transcriptionError) {
+          console.warn('Unable to transcribe voice note', transcriptionError)
+        }
+      }
+
+      if (transcriptionText && import.meta.env.VITE_SUMMARY_API_URL) {
+        try {
+          const summaryPayload = await summarizeTranscription(transcriptionText)
+          aiSummary = normalizeSummary(summaryPayload)
+        } catch (summaryError) {
+          console.warn('Unable to summarize transcription', summaryError)
+        }
+      }
+
       const { error: caseError } = await supabase.from('case_submissions').insert({
         appointment_id: appointmentData.id,
         image_urls: imageUrls,
         audio_url: audioPath,
+        transcription: transcriptionText,
+        ai_summary: aiSummary,
       })
 
       if (caseError) {
