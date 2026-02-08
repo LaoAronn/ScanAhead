@@ -7,7 +7,7 @@ interface VideoRecorderProps {
 }
 
 const MAX_DURATION = 45
-const MAX_SIZE_BYTES = 25_000_000
+const MAX_SIZE_BYTES = 50_000_000
 
 const pickSupportedMimeType = () => {
   const candidates = [
@@ -112,7 +112,7 @@ const VideoRecorder = ({ value, onRecorded }: VideoRecorderProps) => {
         }
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType })
         if (blob.size > MAX_SIZE_BYTES) {
-          setError('Video is too large. Please keep it under 45 seconds.')
+          setError('Video is too large. Please keep it under 50 MB.')
           setVideoUrl(null)
           onRecorded?.(null)
           streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -153,7 +153,7 @@ const VideoRecorder = ({ value, onRecorded }: VideoRecorderProps) => {
     if (!file) return
 
     if (file.size > MAX_SIZE_BYTES) {
-      setError('Video is too large. Please keep it under 25 MB.')
+      setError('Video is too large. Please keep it under 50 MB.')
       return
     }
 

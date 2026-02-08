@@ -77,6 +77,31 @@ const CaseDetail = ({
     return data?.signedUrl ?? null
   }
 
+  const findExistingModel = async () => {
+    if (modelPath) {
+      const signed = await createSignedUrl('patient-models', modelPath)
+      if (signed) return { path: modelPath, url: signed }
+    }
+
+    const { data, error } = await supabase.storage
+      .from('patient-models')
+      .list(appointmentId, { search: 'model.glb', limit: 1 })
+
+    if (error) {
+      console.warn('Unable to list model files', error)
+      return null
+    }
+
+    const file = data?.find((entry) => entry.name === 'model.glb')
+    if (!file) return null
+
+    const path = `${appointmentId}/${file.name}`
+    const signed = await createSignedUrl('patient-models', path)
+    if (!signed) return null
+
+    return { path, url: signed }
+  }
+
   useEffect(() => {
     const loadMedia = async () => {
       setVideoUrl(await createSignedUrl('patient-videos', videoPath))
@@ -109,6 +134,13 @@ const CaseDetail = ({
     setModelError(null)
     setModelLoading(true)
     try {
+      const existing = await findExistingModel()
+      if (existing) {
+        setModelUrl(existing.url)
+        setKiriStatus(2)
+        return
+      }
+
       const response = await getKiriModelZip(kiriSerialize)
       const modelUrl = response?.data?.modelUrl
       if (!modelUrl) {
@@ -129,7 +161,7 @@ const CaseDetail = ({
         .upload(uploadPath, blob, { contentType: 'model/gltf-binary', upsert: true })
 
       if (uploadError) {
-        throw new Error('Unable to store model file')
+        throw new Error(uploadError.message || 'Unable to store model file')
       }
 
       const { error: updateError } = await supabase

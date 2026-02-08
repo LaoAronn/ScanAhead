@@ -34,7 +34,7 @@ app.post('/api/transcribe', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No audio file provided' })
     }
 
-    const apiKey = process.env.ELEVENLABS_API_KEY
+    const apiKey = process.env.VITE_ELEVENLABS_API_KEY
 
     if (!apiKey) {
       return res.status(500).json({ error: 'API key not configured' })
