@@ -10,11 +10,13 @@ interface CaseSubmissionProps {
   bodyPart: string
   images: CapturedImage[]
   audio: Blob | null
+  video: Blob | null
+  captureMode: 'photos' | 'video'
   onSubmitted?: (caseId: string) => void
 }
 
-const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: CaseSubmissionProps) => {
-  const { user } = useAuth()
+const CaseSubmission = ({ appointment, bodyPart, images, audio, video, captureMode, onSubmitted }: CaseSubmissionProps) => {
+  const { user, role } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successId, setSuccessId] = useState<string | null>(null)
@@ -33,8 +35,11 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
       if (!bodyPart) {
         throw new Error('Please select a body part.')
       }
-      if (images.length < 5) {
+      if (captureMode === 'photos' && images.length < 5) {
         throw new Error('Please capture at least 5 images.')
+      }
+      if (captureMode === 'video' && !video) {
+        throw new Error('Please record a short video.')
       }
       if (!audio) {
         throw new Error('Please record a voice note.')
@@ -47,6 +52,19 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
         onSubmitted?.(caseId)
         setLoading(false)
         return
+      }
+
+      const profilePayload = {
+        id: user.id,
+        email: user.email ?? appointment.email,
+        full_name: appointment.patientName || user.user_metadata?.full_name || 'Patient',
+        role: role ?? 'patient',
+      }
+
+      const { error: profileError } = await supabase.from('users').upsert(profilePayload)
+
+      if (profileError) {
+        throw new Error(`Unable to create patient profile. ${profileError.message}`)
       }
 
       const { data: appointmentData, error: appointmentError } = await supabase
@@ -65,23 +83,48 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
         .single()
 
       if (appointmentError || !appointmentData) {
-        throw new Error('Unable to create appointment.')
+        const message = appointmentError?.message ?? 'Unable to create appointment.'
+        throw new Error(message)
       }
 
       const imageUrls: string[] = []
-      for (const [index, image] of images.entries()) {
-        const blob = await (await fetch(image.dataUrl)).blob()
-        const filePath = `${appointmentData.id}/${index + 1}.jpg`
-        const { error: uploadError } = await supabase.storage
-          .from('patient-images')
-          .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true })
+      if (captureMode === 'photos') {
+        for (const [index, image] of images.entries()) {
+          const blob = await (await fetch(image.dataUrl)).blob()
+          const filePath = `${appointmentData.id}/${index + 1}.jpg`
+          const { error: uploadError } = await supabase.storage
+            .from('patient-images')
+            .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true })
 
-        if (uploadError) {
-          throw new Error('Unable to upload images.')
+          if (uploadError) {
+            throw new Error('Unable to upload images.')
+          }
+
+          const { data: publicUrl } = supabase.storage.from('patient-images').getPublicUrl(filePath)
+          imageUrls.push(publicUrl.publicUrl)
         }
+      }
 
-        const { data: publicUrl } = supabase.storage.from('patient-images').getPublicUrl(filePath)
-        imageUrls.push(publicUrl.publicUrl)
+      const resolveVideoExtension = (blob: Blob) => {
+        const type = blob.type.toLowerCase()
+        if (type.includes('webm')) return 'webm'
+        if (type.includes('mp4')) return 'mp4'
+        if (type.includes('quicktime')) return 'mov'
+        return 'webm'
+      }
+
+      let videoPath: string | null = null
+      if (captureMode === 'video' && video) {
+        const extension = resolveVideoExtension(video)
+        const contentType = video.type || `video/${extension}`
+        videoPath = `${appointmentData.id}/case-video.${extension}`
+        const { error: videoError } = await supabase.storage
+          .from('patient-videos')
+          .upload(videoPath, video, { contentType, upsert: true })
+
+        if (videoError) {
+          throw new Error('Unable to upload video.')
+        }
       }
 
       const audioPath = `${appointmentData.id}/voice-note.webm`
@@ -127,6 +170,7 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
         appointment_id: appointmentData.id,
         image_urls: imageUrls,
         audio_url: audioPath,
+        video_url: videoPath,
         transcription: transcriptionText,
         ai_summary: aiSummary,
       })
@@ -148,7 +192,7 @@ const CaseSubmission = ({ appointment, bodyPart, images, audio, onSubmitted }: C
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="text-lg font-semibold text-slate-900">Submit your case</h3>
       <p className="mt-1 text-sm text-slate-500">
-        We will review your photos and voice note. You will receive a confirmation ID.
+        We will review your photos or video along with the voice note. You will receive a confirmation ID.
       </p>
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}

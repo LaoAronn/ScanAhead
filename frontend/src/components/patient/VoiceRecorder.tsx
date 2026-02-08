@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { transcribeAudio } from '../../lib/transcription'
 
 interface VoiceRecorderProps {
+  value?: Blob | null
   onRecorded?: (audio: Blob) => void
   onTranscribed?: (text: string) => void
 }
@@ -273,6 +274,18 @@ const VoiceRecorder = ({ onRecorded, onTranscribed }: VoiceRecorderProps) => {
       setIsTranscribing(false)
     }
   }
+
+  useEffect(() => {
+    if (!value) {
+      setAudioUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(value)
+    setAudioUrl(url)
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [value])
 
   useEffect(() => {
     return () => {

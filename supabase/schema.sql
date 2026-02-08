@@ -56,14 +56,22 @@ create policy "Users can read own profile" on public.users
   for select
   using (id = auth.uid());
 
+create or replace function public.is_doctor()
+returns boolean
+language sql
+security definer
+set search_path = public
+set row_security = off
+as $$
+  select exists (
+    select 1 from public.users u
+    where u.id = auth.uid() and u.role = 'doctor'
+  );
+$$;
+
 create policy "Doctors can read user profiles" on public.users
   for select
-  using (
-    exists (
-      select 1 from public.users u
-      where u.id = auth.uid() and u.role = 'doctor'
-    )
-  );
+  using (public.is_doctor());
 
 create policy "Users can insert own profile" on public.users
   for insert
