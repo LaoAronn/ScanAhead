@@ -18,7 +18,7 @@ interface AuthActions {
   signOut: () => Promise<void>
 }
 
-const withTimeout = async <T>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+const withTimeout = async <T,>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
   let timerId: ReturnType<typeof setTimeout> | null = null
 
   const timeout = new Promise<never>((_resolve, reject) => {
